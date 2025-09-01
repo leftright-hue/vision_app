@@ -25,7 +25,7 @@ class Config:
         self.port = int(os.getenv('PORT', 5000))
         
         # 파일 업로드 설정
-        self.upload_folder = os.getenv('UPLOAD_FOLDER', 'static/uploads')
+        self.upload_folder = os.getenv('UPLOAD_FOLDER', 'uploads')
         self.max_file_size = int(os.getenv('MAX_FILE_SIZE', 16 * 1024 * 1024))  # 16MB
         self.allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
         
@@ -38,7 +38,7 @@ class Config:
         self.max_retries = int(os.getenv('MAX_RETRIES', 3))
         
         # 출력 설정
-        self.output_folder = os.getenv('OUTPUT_FOLDER', 'static/results')
+        self.output_folder = os.getenv('OUTPUT_FOLDER', 'results')
         
         # 디렉터리 생성
         self._create_directories()

@@ -76,6 +76,9 @@ def generate():
     """이미지 생성"""
     try:
         data = request.json
+        if data is None:
+            return jsonify({'success': False, 'error': 'JSON 데이터가 없습니다'})
+            
         prompt = data.get('prompt', '')
         
         if not prompt:
@@ -115,7 +118,10 @@ def ai_analyze():
             return jsonify({'success': False, 'error': '이미지가 없습니다'})
         
         image_file = request.files['image']
-        image = Image.open(image_file)
+        
+        # FileStorage 객체에서 직접 이미지를 로드
+        image_bytes = image_file.read()
+        image = Image.open(io.BytesIO(image_bytes))
         prompt = request.form.get('prompt', '이 이미지를 분석해주세요')
         
         response = model.generate_content([prompt, image])

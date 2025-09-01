@@ -16,7 +16,7 @@ from PIL import Image
 
 # Google AI Studio API (도구일 뿐, 핵심은 방법론)
 try:
-    from google import genai
+    import google.generativeai as genai
 except ImportError:
     print("❌ google-generativeai 패키지가 설치되지 않았습니다.")
     print("💡 설치 방법: pip install google-generativeai")
@@ -40,13 +40,14 @@ class ImageGenerator:
         """이미지 생성기 초기화"""
         try:
             # AI 모델 클라이언트 초기화 (도구 설정)
-            self.client = genai.Client(api_key=config.google_api_key)
+            genai.configure(api_key=config.google_api_key)
+            self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
             print("✅ 이미지 생성기가 초기화되었습니다.")
         except Exception as e:
             print(f"❌ 이미지 생성기 초기화 실패: {e}")
             raise
     
-    def generate_image(self, prompt: str, output_path: str = None) -> Dict:
+    def generate_image(self, prompt: str, output_path: Optional[str] = None) -> Dict:
         """
         텍스트 프롬프트로 이미지 생성
         
@@ -81,10 +82,7 @@ class ImageGenerator:
             # 3. AI 모델 호출 (핵심 생성 로직)
             print(f"🎨 이미지 생성 중: {prompt[:50]}...")
             
-            response = self.client.models.generate_content(
-                model=config.image_model,
-                contents=[prompt]
-            )
+            response = self.model.generate_content([prompt])
             
             # 4. 결과 처리 및 저장
             for part in response.parts:
@@ -116,7 +114,7 @@ class ImageGenerator:
                 code="GENERATION_ERROR"
             )
     
-    def edit_image(self, image_path: str, edit_prompt: str, output_path: str = None) -> Dict:
+    def edit_image(self, image_path: str, edit_prompt: str, output_path: Optional[str] = None) -> Dict:
         """
         기존 이미지 편집
         
@@ -163,9 +161,8 @@ class ImageGenerator:
             # 4. AI 모델 호출 (핵심 편집 로직)
             print(f"✏️ 이미지 편집 중: {edit_prompt[:50]}...")
             
-            response = self.client.models.generate_content(
-                model=config.image_model,
-                contents=[edit_prompt, optimized_image]
+            response = self.model.generate_content(
+                [edit_prompt, optimized_image]
             )
             
             # 5. 결과 처리 및 저장
@@ -271,9 +268,8 @@ class ImageGenerator:
             연결 성공 여부
         """
         try:
-            response = self.client.models.generate_content(
-                model=config.image_model,
-                contents=["Hello, this is a connection test."]
+            response = self.model.generate_content(
+                ["Hello, this is a connection test."]
             )
             return bool(response.text)
         except Exception as e:

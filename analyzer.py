@@ -16,7 +16,7 @@ from PIL import Image
 
 # Google AI Studio API (도구일 뿐, 핵심은 방법론)
 try:
-    from google import genai
+    import google.generativeai as genai
 except ImportError:
     print("❌ google-generativeai 패키지가 설치되지 않았습니다.")
     print("💡 설치 방법: pip install google-generativeai")
@@ -40,7 +40,8 @@ class ImageAnalyzer:
         """이미지 분석기 초기화"""
         try:
             # AI 모델 클라이언트 초기화 (도구 설정)
-            self.client = genai.Client(api_key=config.google_api_key)
+            genai.configure(api_key=config.google_api_key)
+            self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
             print("✅ 이미지 분석기가 초기화되었습니다.")
         except Exception as e:
             print(f"❌ 이미지 분석기 초기화 실패: {e}")
@@ -79,10 +80,7 @@ class ImageAnalyzer:
             image = Image.open(optimized_path)
             
             # 4. AI 모델 호출 (핵심 분석 로직)
-            response = self.client.models.generate_content(
-                model=config.vision_model,
-                contents=[prompt, image]
-            )
+            response = self.model.generate_content([prompt, image])
             
             # 5. 결과 후처리
             analysis_result = {
@@ -174,8 +172,7 @@ class ImageAnalyzer:
             연결 성공 여부
         """
         try:
-            response = self.client.models.generate_content(
-                model=config.vision_model,
+            response = self.model.generate_content(
                 contents=["Hello, this is a connection test."]
             )
             return bool(response.text)
