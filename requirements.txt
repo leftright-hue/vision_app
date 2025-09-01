@@ -1,0 +1,29 @@
+# Web Framework
+Flask>=3.0.0
+
+# Google AI Studio API
+google-generativeai>=0.8.0
+
+# Image Processing
+Pillow>=10.0.0
+opencv-python>=4.8.0
+
+# Environment and Configuration
+python-dotenv>=1.0.0
+
+# Data Processing
+numpy>=1.24.0
+pandas>=2.0.0
+
+# HTTP Requests
+requests>=2.31.0
+
+# Security
+cryptography>=41.0.0
+
+# Development Tools
+python-dateutil>=2.8.0
+
+# Optional: For advanced image processing
+matplotlib>=3.7.0
+seaborn>=0.12.0

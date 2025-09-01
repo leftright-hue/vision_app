@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Vision App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            font-size: 3em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .menu {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .menu-item {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            transition: transform 0.3s;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+        .menu-item:hover {
+            transform: translateY(-5px);
+        }
+        .menu-item h2 {
+            margin-top: 0;
+            color: #333;
+            font-size: 1.8em;
+        }
+        .menu-item .icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+        .menu-item p {
+            color: #666;
+            line-height: 1.6;
+        }
+        .main-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #555;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .loading {
+            display: none;
+            color: #666;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Smart Vision App</h1>
+        
+        <!-- 메뉴 -->
+        <div class="menu">
+            <a href="/ai_studio" class="menu-item">
+                <div class="icon">🕵️</div>
+                <h2>AI 사진 탐정</h2>
+                <p>Gemini AI로 사진을 분석하고 질문에 답변받기</p>
+            </a>
+            
+            <a href="/nano_banana" class="menu-item">
+                <div class="icon">🍌</div>
+                <h2>Nano Banana</h2>
+                <p>AI로 이미지 생성하고 편집하기</p>
+            </a>
+            
+            <div class="menu-item" onclick="showBasic()">
+                <div class="icon">🎨</div>
+                <h2>기본 기능</h2>
+                <p>이미지 분석 및 생성 기본 기능</p>
+            </div>
+        </div>
+        
+        <!-- 기본 기능 -->
+        <div id="basicFeatures" class="main-content" style="display:none;">
+            <h2>🎨 기본 기능</h2>
+            
+            <!-- 이미지 분석 -->
+            <div class="section">
+                <h3>📊 이미지 분석</h3>
+            <input type="file" id="analyzeFile" accept="image/*">
+            <textarea id="analyzePrompt" placeholder="분석 프롬프트 (선택사항)">이 이미지를 분석해주세요</textarea>
+            <button onclick="analyzeImage()">분석하기</button>
+            <div id="analyzeLoading" class="loading">분석 중...</div>
+            <div id="analyzeResult"></div>
+        </div>
+
+        <!-- 이미지 생성 -->
+        <div class="section">
+            <h2>🎨 이미지 생성</h2>
+            <textarea id="generatePrompt" placeholder="생성할 이미지 설명을 입력하세요">아름다운 일몰 풍경</textarea>
+            <button onclick="generateImage()">생성하기</button>
+            <div id="generateLoading" class="loading">생성 중...</div>
+            <div id="generateResult"></div>
+        </div>
+
+            <!-- 연결 테스트 -->
+            <div class="section">
+                <h3>🔍 연결 테스트</h3>
+                <button onclick="testConnection()">테스트</button>
+                <div id="testResult"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showBasic() {
+            const features = document.getElementById('basicFeatures');
+            features.style.display = features.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        async function analyzeImage() {
+            const fileInput = document.getElementById('analyzeFile');
+            const promptInput = document.getElementById('analyzePrompt');
+            const loading = document.getElementById('analyzeLoading');
+            const result = document.getElementById('analyzeResult');
+            
+            if (!fileInput.files[0]) {
+                result.innerHTML = '<div class="error">파일을 선택해주세요</div>';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            formData.append('prompt', promptInput.value);
+            
+            loading.style.display = 'block';
+            result.innerHTML = '';
+            
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    result.innerHTML = `<div class="success">✅ 분석 완료</div><div id="result">${data.data.analysis}</div>`;
+                } else {
+                    result.innerHTML = `<div class="error">❌ ${data.error}</div>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">❌ 오류: ${error}</div>`;
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+        
+        async function generateImage() {
+            const promptInput = document.getElementById('generatePrompt');
+            const loading = document.getElementById('generateLoading');
+            const result = document.getElementById('generateResult');
+            
+            if (!promptInput.value) {
+                result.innerHTML = '<div class="error">프롬프트를 입력해주세요</div>';
+                return;
+            }
+            
+            loading.style.display = 'block';
+            result.innerHTML = '';
+            
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({prompt: promptInput.value})
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    result.innerHTML = `<div class="success">✅ 생성 완료</div>
+                        <div>📁 ${data.data.output_path}</div>
+                        <div>🖼️ ${data.data.image_size}</div>`;
+                } else {
+                    result.innerHTML = `<div class="error">❌ ${data.error}</div>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">❌ 오류: ${error}</div>`;
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+        
+        async function testConnection() {
+            const result = document.getElementById('testResult');
+            
+            try {
+                const response = await fetch('/test');
+                const data = await response.json();
+                
+                if (data.success) {
+                    result.innerHTML = `
+                        <div class="success">✅ 연결 테스트 완료</div>
+                        <div>분석기: ${data.analyzer ? '✅' : '❌'}</div>
+                        <div>생성기: ${data.generator ? '✅' : '❌'}</div>
+                        <div>Gemini: ${data.gemini ? '✅' : '❌'}</div>`;
+                } else {
+                    result.innerHTML = `<div class="error">❌ ${data.error}</div>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">❌ 오류: ${error}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
