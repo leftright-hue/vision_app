@@ -2,7 +2,7 @@
 Smart Vision Flask App - 통합 웹 인터페이스
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 import os
 import time
 import io
@@ -18,14 +18,14 @@ load_dotenv()
 api_key = os.getenv('GOOGLE_API_KEY')
 if api_key:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    model = genai.GenerativeModel('models/gemini-2.5-flash-image-preview')
 else:
     model = None
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/static', static_folder='static')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
-# 출력 디렉터리
+# 출력 디렉터리 - static 폴더 사용
 os.makedirs('static/generated', exist_ok=True)
 
 @app.route('/')
@@ -106,6 +106,11 @@ def test():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/static/generated/<path:filename>')
+def serve_generated_image(filename):
+    """생성된 이미지 서빙"""
+    return send_from_directory('static/generated', filename)
 
 @app.route('/ai_analyze', methods=['POST'])
 def ai_analyze():

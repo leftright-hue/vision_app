@@ -41,7 +41,7 @@ class ImageGenerator:
         try:
             # AI 모델 클라이언트 초기화 (도구 설정)
             genai.configure(api_key=config.google_api_key)
-            self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            self.model = genai.GenerativeModel('models/gemini-2.5-flash-image-preview')
             print("✅ 이미지 생성기가 초기화되었습니다.")
         except Exception as e:
             print(f"❌ 이미지 생성기 초기화 실패: {e}")
@@ -77,34 +77,94 @@ class ImageGenerator:
             if output_path is None:
                 timestamp = int(time.time())
                 filename = f"generated_{timestamp}.png"
-                output_path = config.get_output_path(filename)
+                # static 폴더에 저장
+                output_path = os.path.join('static', 'generated', filename)
             
-            # 3. AI 모델 호출 (핵심 생성 로직)
+            # 3. AI 모델 호출 (핵심 생성 로직 - Nano Banana)
             print(f"🎨 이미지 생성 중: {prompt[:50]}...")
             
+            # 디버깅: 응답 구조 확인
             response = self.model.generate_content([prompt])
             
+            print(f"📊 응답 받음. Candidates 수: {len(response.candidates) if response.candidates else 0}")
+            
             # 4. 결과 처리 및 저장
-            for part in response.parts:
-                if image := part.as_image():
-                    # 이미지 저장
-                    image.save(output_path)
+            import io
+            
+            if response.candidates:
+                for idx, candidate in enumerate(response.candidates):
+                    print(f"🔍 Candidate {idx}: Parts 수: {len(candidate.content.parts) if candidate.content.parts else 0}")
                     
-                    # 메타데이터 수집
-                    generation_info = {
-                        'output_path': output_path,
-                        'prompt': prompt,
-                        'generation_time': time.time(),
-                        'model_used': config.image_model,
-                        'image_size': image.size,
-                        'image_mode': image.mode
-                    }
-                    
-                    print(f"✅ 이미지가 생성되었습니다: {output_path}")
-                    return response_formatter.success_response(generation_info)
+                    for part_idx, part in enumerate(candidate.content.parts):
+                        print(f"   Part {part_idx} 타입 확인...")
+                        
+                        # 다양한 방법으로 이미지 데이터 확인
+                        if hasattr(part, 'text') and part.text:
+                            print(f"   📝 텍스트 응답: {part.text[:100]}...")
+                        
+                        # inline_data 확인
+                        if hasattr(part, 'inline_data') and part.inline_data:
+                            print(f"   🖼️ inline_data 발견!")
+                            try:
+                                if hasattr(part.inline_data, 'data') and part.inline_data.data:
+                                    image_data = part.inline_data.data
+                                    image = Image.open(io.BytesIO(image_data))
+                                    
+                                    # 이미지 저장
+                                    image.save(output_path)
+                                    
+                                    # 메타데이터 수집
+                                    generation_info = {
+                                        'output_path': output_path,
+                                        'web_path': f'/static/generated/{os.path.basename(output_path)}',
+                                        'prompt': prompt,
+                                        'generation_time': time.time(),
+                                        'model_used': 'models/gemini-2.5-flash-image-preview',
+                                        'image_size': image.size,
+                                        'image_mode': image.mode
+                                    }
+                                    
+                                    print(f"✅ 이미지가 생성되었습니다: {output_path}")
+                                    return response_formatter.success_response(generation_info)
+                            except Exception as e:
+                                print(f"   ❌ 이미지 처리 오류: {str(e)}")
+                        
+                        # blob 확인
+                        if hasattr(part, 'blob') and part.blob:
+                            print(f"   🖼️ blob 발견!")
+                            try:
+                                image_data = part.blob
+                                image = Image.open(io.BytesIO(image_data))
+                                
+                                # 이미지 저장
+                                image.save(output_path)
+                                
+                                # 메타데이터 수집
+                                generation_info = {
+                                    'output_path': output_path,
+                                    'web_path': f'/static/generated/{os.path.basename(output_path)}',
+                                    'prompt': prompt,
+                                    'generation_time': time.time(),
+                                    'model_used': 'models/gemini-2.5-flash-image-preview',
+                                    'image_size': image.size,
+                                    'image_mode': image.mode
+                                }
+                                
+                                print(f"✅ 이미지가 생성되었습니다: {output_path}")
+                                return response_formatter.success_response(generation_info)
+                            except Exception as e:
+                                print(f"   ❌ blob 처리 오류: {str(e)}")
+                        
+                        # Part의 모든 속성 출력 (디버깅용)
+                        print(f"   Part 속성들: {dir(part)}")
+            
+            # 응답 전체 구조 디버깅
+            print(f"❌ 이미지를 찾을 수 없음. Response 속성: {dir(response)}")
+            if response.candidates and response.candidates[0].content.parts:
+                print(f"   Part[0] 속성: {dir(response.candidates[0].content.parts[0])}")
             
             return response_formatter.error_response(
-                "이미지 생성에 실패했습니다.",
+                "이미지 생성에 실패했습니다. Nano Banana 모델이 이미지를 반환하지 않았습니다.",
                 code="GENERATION_FAILED"
             )
             
@@ -151,7 +211,8 @@ class ImageGenerator:
             if output_path is None:
                 timestamp = int(time.time())
                 filename = f"edited_{timestamp}.png"
-                output_path = config.get_output_path(filename)
+                # static 폴더에 저장
+                output_path = os.path.join('static', 'generated', filename)
             
             # 3. 이미지 로드 및 전처리
             image = Image.open(image_path)
@@ -165,25 +226,37 @@ class ImageGenerator:
                 [edit_prompt, optimized_image]
             )
             
-            # 5. 결과 처리 및 저장
-            for part in response.parts:
-                if image := part.as_image():
-                    # 편집된 이미지 저장
-                    image.save(output_path)
-                    
-                    # 메타데이터 수집
-                    edit_info = {
-                        'output_path': output_path,
-                        'original_path': image_path,
-                        'edit_prompt': edit_prompt,
-                        'edit_time': time.time(),
-                        'model_used': config.image_model,
-                        'image_size': image.size,
-                        'image_mode': image.mode
-                    }
-                    
-                    print(f"✅ 이미지 편집이 완료되었습니다: {output_path}")
-                    return response_formatter.success_response(edit_info)
+            # 5. 결과 처리 및 저장  
+            import io
+            
+            for candidate in response.candidates:
+                for part in candidate.content.parts:
+                    # 텍스트 응답 처리
+                    if hasattr(part, 'text') and part.text:
+                        print(f"📝 응답: {part.text}")
+                    # 이미지 데이터 처리 (inline_data)
+                    elif hasattr(part, 'inline_data') and part.inline_data:
+                        # 편집된 이미지 데이터를 PIL Image로 변환
+                        image_data = part.inline_data.data
+                        image = Image.open(io.BytesIO(image_data))
+                        
+                        # 편집된 이미지 저장
+                        image.save(output_path)
+                        
+                        # 메타데이터 수집
+                        edit_info = {
+                            'output_path': output_path,
+                            'web_path': f'/static/generated/{os.path.basename(output_path)}',
+                            'original_path': image_path,
+                            'edit_prompt': edit_prompt,
+                            'edit_time': time.time(),
+                            'model_used': 'models/gemini-2.5-flash-image-preview',
+                            'image_size': image.size,
+                            'image_mode': image.mode
+                        }
+                        
+                        print(f"✅ 이미지 편집이 완료되었습니다: {output_path}")
+                        return response_formatter.success_response(edit_info)
             
             return response_formatter.error_response(
                 "이미지 편집에 실패했습니다.",

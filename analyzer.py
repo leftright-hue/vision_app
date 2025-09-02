@@ -41,7 +41,7 @@ class ImageAnalyzer:
         try:
             # AI 모델 클라이언트 초기화 (도구 설정)
             genai.configure(api_key=config.google_api_key)
-            self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            self.model = genai.GenerativeModel('models/gemini-2.5-flash-image-preview')
             print("✅ 이미지 분석기가 초기화되었습니다.")
         except Exception as e:
             print(f"❌ 이미지 분석기 초기화 실패: {e}")

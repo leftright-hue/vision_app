@@ -300,8 +300,8 @@
                 if (data.success) {
                     result.innerHTML = `
                         <div class="success">✅ 이미지 생성 완료!</div>
-                        <img src="${data.image}" class="result-image" alt="Generated Image">
-                        <p>파일명: ${data.filename}</p>
+                        <img src="${data.data.web_path || data.data.output_path}" class="result-image" alt="Generated Image">
+                        <p>파일명: ${data.data.output_path ? data.data.output_path.split('/').pop() : 'undefined'}</p>
                     `;
                 } else {
                     result.innerHTML = `<div class="error">❌ ${data.error}</div>`;
