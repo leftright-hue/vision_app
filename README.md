@@ -194,11 +194,40 @@ python modules/week02_cnn/labs/02_image_filtering_convolution.py
 python modules/week02_cnn/labs/04_cnn_visualization.py
 ```
 
-### 통합 앱에서 실습
+### 통합 앱 실행 (VIBE 코딩)
 
-1. `streamlit run app.py` 실행
-2. 사이드바에서 "Week 2: CNN" 선택
-3. 각 탭에서 실습 진행
+**AI에게 요청하는 방법:**
+
+```
+"통합 앱을 실행해줘"
+```
+
+또는
+
+```
+"streamlit으로 app.py 실행해줘"
+```
+
+**구체적 요청:**
+```
+"Smart Vision App을 streamlit으로 실행하고 브라우저에서 열어줘"
+```
+
+**AI가 자동으로 수행하는 작업:**
+1. 가상환경 활성화 확인
+2. `streamlit run app.py` 실행
+3. 브라우저에서 `http://localhost:8501` 자동 열기
+4. 사이드바에서 "Week 2: CNN" 선택 안내
+5. 각 탭에서 실습 진행 방법 설명
+
+**문제 해결 요청:**
+```
+"streamlit이 실행 안 돼. 해결해줘"
+```
+
+```
+"ModuleNotFoundError: No module named 'streamlit' 에러가 나와"
+```
 
 ## 🤝 기여하기
 
@@ -218,9 +247,6 @@ MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일 참조
 - PyTorch 커뮤니티
 - Streamlit 팀의 직관적인 프레임워크
 
-## 📧 연락처
-
-프로젝트에 대한 질문이나 제안 사항이 있으시면 언제든지 연락 주세요!
 
 ---
 
