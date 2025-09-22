@@ -27,8 +27,6 @@ ENV/
 Thumbs.db
 
 # Generated Files
-static/generated/
-static/uploads/
 *.log
 
 # Image files (실습 결과물)
