@@ -1,142 +1,162 @@
 """
-Smart Vision Flask App - 통합 웹 인터페이스
+Smart Vision App - 모듈식 통합 웹 인터페이스
+주차별 학습 모듈을 통합한 메인 애플리케이션
 """
 
-from flask import Flask, render_template, request, jsonify, send_from_directory
 import os
-import time
-import io
-import base64
+import streamlit as st
 from PIL import Image
-import google.generativeai as genai
-from dotenv import load_dotenv
-from analyzer import analyzer
-from generator import generator
+import sys
 
-# 환경 설정
-load_dotenv()
-api_key = os.getenv('GOOGLE_API_KEY')
-if api_key:
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('models/gemini-2.5-flash-image-preview')
-else:
-    model = None
+# 프로젝트 경로 설정
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-app = Flask(__name__, static_url_path='/static', static_folder='static')
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+# 모듈 임포트
+from modules.week02_cnn.cnn_module import CNNModule
 
-# 출력 디렉터리 - static 폴더 사용
-os.makedirs('static/generated', exist_ok=True)
+# 페이지 설정
+st.set_page_config(
+    page_title="Smart Vision App",
+    page_icon="🎯",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-@app.route('/')
-def index():
-    """메인 페이지 - 모든 기능 통합"""
-    return render_template('index.html')
+class SmartVisionApp:
+    """메인 애플리케이션 클래스"""
 
-@app.route('/ai_studio')
-def ai_studio():
-    """AI Studio 페이지"""
-    return render_template('ai_studio.html')
+    def __init__(self):
+        self.modules = {
+            'Week 2: CNN': CNNModule(),
+            # Week 3, 4 등은 나중에 추가
+        }
 
-@app.route('/nano_banana')
-def nano_banana():
-    """Nano Banana 페이지"""
-    return render_template('nano_banana.html')
+    def run(self):
+        """애플리케이션 실행"""
+        # 사이드바
+        with st.sidebar:
+            st.title("🎯 Smart Vision App")
+            st.markdown("---")
 
-@app.route('/analyze', methods=['POST'])
-def analyze():
-    """이미지 분석"""
-    try:
-        if 'image' not in request.files:
-            return jsonify({'success': False, 'error': '이미지가 없습니다'})
-        
-        image = request.files['image']
-        if image.filename == '':
-            return jsonify({'success': False, 'error': '파일을 선택해주세요'})
-        
-        # 임시 저장
-        temp_path = f'temp_{image.filename}'
-        image.save(temp_path)
-        
-        # 분석 수행
-        prompt = request.form.get('prompt', '이 이미지를 분석해주세요')
-        result = analyzer.analyze_image(temp_path, prompt)
-        
-        # 임시 파일 삭제
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+            # 모듈 선택
+            st.header("📚 학습 모듈")
+            selected_module = st.selectbox(
+                "모듈 선택",
+                list(self.modules.keys())
+            )
 
-@app.route('/generate', methods=['POST'])
-def generate():
-    """이미지 생성"""
-    try:
-        data = request.json
-        if data is None:
-            return jsonify({'success': False, 'error': 'JSON 데이터가 없습니다'})
-            
-        prompt = data.get('prompt', '')
-        
-        if not prompt:
-            return jsonify({'success': False, 'error': '프롬프트를 입력해주세요'})
-        
-        result = generator.generate_image(prompt)
-        return jsonify(result)
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+            st.markdown("---")
 
-@app.route('/test')
-def test():
-    """연결 테스트"""
-    try:
-        analyzer_status = analyzer.test_connection()
-        generator_status = generator.test_connection()
-        model_status = model is not None
-        
-        return jsonify({
-            'success': True,
-            'analyzer': analyzer_status,
-            'generator': generator_status,
-            'gemini': model_status
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+            # 앱 정보
+            st.header("ℹ️ 정보")
+            st.info("""
+            **Smart Vision App**
 
-@app.route('/static/generated/<path:filename>')
-def serve_generated_image(filename):
-    """생성된 이미지 서빙"""
-    return send_from_directory('static/generated', filename)
+            AI 비전 학습 통합 플랫폼
 
-@app.route('/ai_analyze', methods=['POST'])
-def ai_analyze():
-    """AI Studio 이미지 분석"""
-    try:
-        if not model:
-            return jsonify({'success': False, 'error': 'API 키가 설정되지 않았습니다'})
-        
-        if 'image' not in request.files:
-            return jsonify({'success': False, 'error': '이미지가 없습니다'})
-        
-        image_file = request.files['image']
-        
-        # FileStorage 객체에서 직접 이미지를 로드
-        image_bytes = image_file.read()
-        image = Image.open(io.BytesIO(image_bytes))
-        prompt = request.form.get('prompt', '이 이미지를 분석해주세요')
-        
-        response = model.generate_content([prompt, image])
-        
-        return jsonify({
-            'success': True,
-            'result': response.text
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+            - Week 2: CNN과 이미지 처리
+            - Week 3: Transfer Learning (예정)
+            - Week 4: 멀티모달 AI (예정)
+            """)
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+            # 리소스 링크
+            st.header("🔗 리소스")
+            st.markdown("""
+            - [HuggingFace](https://huggingface.co)
+            - [PyTorch](https://pytorch.org)
+            - [OpenCV Docs](https://docs.opencv.org)
+            """)
+
+        # 메인 컨텐츠
+        if selected_module == 'Week 2: CNN':
+            self.modules[selected_module].render_ui()
+        else:
+            # 홈 페이지
+            self.render_home()
+
+    def render_home(self):
+        """홈 페이지 렌더링"""
+        st.title("🎯 Smart Vision App")
+        st.markdown("### AI 비전 학습 통합 플랫폼")
+
+        st.markdown("---")
+
+        # 소개
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.header("🚀 주요 기능")
+            st.markdown("""
+            - **이미지 처리**: 필터링, 변환, 분석
+            - **CNN 학습**: 신경망 구조 이해와 시각화
+            - **AI 모델**: HuggingFace 사전훈련 모델 활용
+            - **통합 분석**: 다양한 기법을 결합한 종합 분석
+            """)
+
+            st.header("📈 학습 진도")
+            progress_data = {
+                "Week 2: CNN": 100,
+                "Week 3: Transfer Learning": 0,
+                "Week 4: Multimodal AI": 0,
+            }
+
+            for week, progress in progress_data.items():
+                st.write(f"**{week}**")
+                st.progress(progress / 100)
+
+        with col2:
+            st.header("🎓 학습 모듈")
+
+            st.subheader("✅ Week 2: CNN과 디지털 이미지")
+            st.markdown("""
+            - 디지털 이미지의 구조
+            - Convolution 연산
+            - CNN 아키텍처
+            - HuggingFace 활용
+            """)
+
+            st.subheader("🔜 Week 3: Transfer Learning")
+            st.markdown("""
+            - 사전훈련 모델 활용
+            - Fine-tuning 기법
+            - 도메인 적응
+            """)
+
+            st.subheader("🔜 Week 4: Multimodal AI")
+            st.markdown("""
+            - 이미지-텍스트 통합
+            - CLIP 모델
+            - 비전-언어 태스크
+            """)
+
+        st.markdown("---")
+
+        # 빠른 시작
+        st.header("⚡ 빠른 시작")
+
+        quick_start_col1, quick_start_col2, quick_start_col3 = st.columns(3)
+
+        with quick_start_col1:
+            if st.button("🔬 이미지 분석 시작", use_container_width=True):
+                st.session_state['selected_module'] = 'Week 2: CNN'
+                st.rerun()
+
+        with quick_start_col2:
+            if st.button("🎨 필터 적용하기", use_container_width=True):
+                st.session_state['selected_module'] = 'Week 2: CNN'
+                st.session_state['selected_tab'] = 'filtering'
+                st.rerun()
+
+        with quick_start_col3:
+            if st.button("🤖 AI 모델 테스트", use_container_width=True):
+                st.session_state['selected_module'] = 'Week 2: CNN'
+                st.session_state['selected_tab'] = 'huggingface'
+                st.rerun()
+
+def main():
+    """메인 함수"""
+    app = SmartVisionApp()
+    app.run()
+
+if __name__ == "__main__":
+    main()

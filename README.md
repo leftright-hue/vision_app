@@ -1,235 +1,227 @@
-# 🤖 Smart Vision App
+# 🎯 Smart Vision App
 
-AI 모델을 활용한 이미지 분석 및 생성 웹 애플리케이션
+AI 비전 학습 통합 플랫폼 - 이미지 처리부터 최신 AI 모델까지
 
-## 📋 프로젝트 개요
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.28%2B-red)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-orange)
+![HuggingFace](https://img.shields.io/badge/🤗%20HuggingFace-Transformers-yellow)
 
-이 프로젝트는 Google AI Studio의 Gemini 모델을 활용하여 이미지 분석 및 생성을 수행하는 **Flask 기반 웹 애플리케이션**입니다.
+## 📚 프로젝트 소개
 
-### 🎯 핵심 학습 목표
-- **AI 모델 활용 방법론**: Google AI Studio API 사용법
-- **모듈화 설계 원리**: 단일 책임 원칙, 의존성 주입, 확장성
-- **웹 애플리케이션 설계**: Flask 프레임워크와 RESTful API
-- **사용자 인터페이스**: 직관적인 웹 UI 설계
+Smart Vision App은 컴퓨터 비전과 딥러닝을 체계적으로 학습할 수 있는 통합 플랫폼입니다.
+이론 학습부터 실습, 그리고 최신 AI 모델 활용까지 한 곳에서 경험할 수 있습니다.
 
-## 🏗️ 프로젝트 구조
+### ✨ 주요 특징
+
+- **📖 체계적인 커리큘럼**: 주차별로 구성된 학습 모듈
+- **🔬 실습 중심**: 각 개념을 직접 코드로 구현하고 시각화
+- **🤖 최신 AI 모델**: HuggingFace의 사전훈련 모델 활용
+- **🎨 인터랙티브 UI**: Streamlit 기반의 직관적인 웹 인터페이스
+
+## 🗂️ 프로젝트 구조
 
 ```
 smart_vision_app/
-├── app.py            # Flask 웹 애플리케이션
-├── analyzer.py       # 이미지 분석 모듈 (Gemini Vision API)
-├── generator.py      # 이미지 생성 모듈 (Gemini 2.5 Flash Image)
-├── utils.py          # 유틸리티 함수 (이미지 처리, 보안)
-├── config.py         # 설정 관리 (API 키, 환경 변수)
-├── templates/        # HTML 템플릿
-│   ├── index.html    # 메인 페이지
-│   ├── ai_studio.html    # AI 사진 탐정 페이지
-│   └── nano_banana.html  # 이미지 생성/편집 페이지
-├── static/           # 정적 파일
-│   └── generated/    # 생성된 이미지
-├── requirements.txt  # 의존성 패키지
-└── README.md         # 프로젝트 설명서
+├── app.py                      # 메인 Streamlit 애플리케이션
+├── run.sh                      # 실행 스크립트
+├── requirements.txt            # 의존성 패키지
+│
+├── core/                       # 핵심 공통 모듈
+│   ├── __init__.py
+│   ├── base_processor.py      # 기본 이미지 처리 클래스
+│   ├── ai_models.py           # AI 모델 관리자
+│   └── utils.py               # 유틸리티 함수
+│
+└── modules/                    # 학습 모듈
+    └── week02_cnn/            # Week 2: CNN과 이미지 처리
+        ├── __init__.py
+        ├── cnn_module.py      # CNN 메인 모듈
+        ├── filters.py         # 이미지 필터
+        │
+        ├── labs/              # 실습 코드
+        │   ├── 01_digital_image_basics.py
+        │   ├── 02_image_filtering_convolution.py
+        │   ├── 03_cnn_basics.py
+        │   ├── 04_cnn_visualization.py
+        │   ├── 05_huggingface_models.py
+        │   └── 06_integrated_project.py
+        │
+        └── lectures/          # 강의 자료
+            └── slides.md      # 강의 슬라이드
 ```
-
-## 💡 핵심 파일들
-
-### `app.py` - Flask 웹 애플리케이션
-- **역할**: 웹 서버 및 라우팅 관리
-- **핵심 기능**: RESTful API 엔드포인트, 템플릿 렌더링
-- **설계 원리**: MVC 패턴, 모듈 통합
-
-### `analyzer.py` - 이미지 분석 모듈
-- **역할**: Gemini Vision API를 활용한 이미지 분석
-- **핵심 기능**: 객체 검출, 감정 분석, 기술적 분석 등
-- **설계 원리**: 단일 책임 원칙, 의존성 주입
-
-### `generator.py` - 이미지 생성 모듈
-- **역할**: Gemini 2.5 Flash Image를 활용한 이미지 생성/편집
-- **핵심 기능**: 텍스트 프롬프트 기반 생성, 스타일 적용
-- **설계 원리**: 확장 가능한 모듈 설계
-
-### `config.py` - 설정 관리
-- **역할**: 환경 변수 및 애플리케이션 설정 관리
-- **핵심 기능**: API 키 관리, 파일 경로 설정
-- **설계 원리**: 중앙화된 설정 관리
-
-### `utils.py` - 유틸리티 함수
-- **역할**: 공통 기능 제공 (이미지 처리, 보안, 응답 형식화)
-- **핵심 기능**: 파일 검증, 이미지 최적화, 에러 처리
-- **설계 원리**: 재사용 가능한 컴포넌트
 
 ## 🚀 시작하기
 
 ### 1. 환경 설정
 
 ```bash
-# 1. 프로젝트 디렉터리로 이동
+# 저장소 클론
+git clone https://github.com/yourusername/smart_vision_app.git
 cd smart_vision_app
 
-# 2. 가상환경 생성 (선택사항)
+# 가상환경 생성 및 활성화
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# 3. 의존성 설치
+# 패키지 설치
 pip install -r requirements.txt
 ```
 
-### 2. API 키 설정
+### 2. 애플리케이션 실행
 
 ```bash
-# .env 파일 생성 (방법 1: .env.example 복사)
-cp .env.example .env
+# 가상환경 활성화 (Windows)
+venv\Scripts\activate
 
-# 또는 직접 생성 (방법 2)
-echo "GOOGLE_API_KEY=your_api_key_here" > .env
+# 가상환경 활성화 (Mac/Linux)
+source venv/bin/activate
+
+# Streamlit 앱 실행
+python -m streamlit run app.py
+
+# 또는 실행 스크립트 사용 (Mac/Linux)
+./run.sh
 ```
 
-**중요**: 
-- Google AI Studio에서 API 키 발급: https://makersuite.google.com/app/apikey
-- `.env` 파일의 `your_api_key_here`를 실제 API 키로 교체
-- `.env` 파일은 절대 git에 커밋하지 마세요 (.gitignore에 포함됨)
+브라우저에서 `http://localhost:8501` 접속
 
-### 3. Flask 서버 실행
+## 📖 학습 모듈
+
+### ✅ Week 2: CNN과 디지털 이미지
+
+#### 학습 내용
+- **디지털 이미지 기초**: 픽셀, 색상 공간, 이미지 표현
+- **이미지 필터링**: Convolution 연산, 다양한 필터 적용
+- **CNN 이론**: 합성곱층, 풀링층, 활성화 함수
+- **CNN 시각화**: 특징 맵, 필터 시각화
+- **HuggingFace 활용**: 사전훈련 모델로 이미지 분석
+
+#### 실습 파일
+1. `01_digital_image_basics.py` - 디지털 이미지의 구조와 표현
+2. `02_image_filtering_convolution.py` - 이미지 필터링과 Convolution
+3. `03_cnn_basics.py` - CNN 수동 구현
+4. `04_cnn_visualization.py` - CNN 시각화
+5. `05_huggingface_models.py` - HuggingFace 모델 활용
+6. `06_integrated_project.py` - 통합 프로젝트
+
+### 🔜 Week 3: Transfer Learning (예정)
+- 사전훈련 모델 활용
+- Fine-tuning 기법
+- 도메인 적응
+
+### 🔜 Week 4: Multimodal AI (예정)
+- 이미지-텍스트 통합
+- CLIP 모델
+- 비전-언어 태스크
+
+## 💡 주요 기능
+
+### 1. 이미지 분석
+- 기본 속성 분석 (크기, 채널, 통계)
+- 히스토그램 분석
+- 색상 공간 변환
+
+### 2. 이미지 필터링
+- 블러, 샤프닝, 엣지 검출
+- 커스텀 커널 적용
+- 실시간 필터 비교
+
+### 3. AI 모델 활용
+- 이미지 분류
+- 객체 검출
+- 제로샷 분류
+- 특징 추출
+
+### 4. CNN 학습
+- CNN 구조 시각화
+- 특징 맵 관찰
+- 필터 효과 분석
+
+## 🛠️ 기술 스택
+
+- **Backend**: Python 3.8+
+- **Web Framework**: Streamlit
+- **Deep Learning**: PyTorch, Transformers
+- **Image Processing**: OpenCV, Pillow
+- **Visualization**: Matplotlib, Plotly
+- **AI Models**: HuggingFace Hub
+
+## 📦 필요 패키지
+
+```txt
+streamlit>=1.28.0
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.30.0
+opencv-python>=4.8.0
+Pillow>=10.0.0
+numpy>=1.24.0
+matplotlib>=3.7.0
+scipy>=1.10.0
+```
+
+## 🎯 학습 로드맵
+
+### Phase 1: 기초 (Week 2)
+- [x] 디지털 이미지 이해
+- [x] Convolution 연산 학습
+- [x] CNN 구조 파악
+- [x] HuggingFace 모델 사용
+
+### Phase 2: 심화 (Week 3)
+- [ ] Transfer Learning
+- [ ] Model Fine-tuning
+- [ ] Custom Dataset 처리
+
+### Phase 3: 고급 (Week 4)
+- [ ] Multimodal Learning
+- [ ] CLIP 모델 활용
+- [ ] 실제 프로젝트 적용
+
+## 📚 실습 가이드
+
+### 개별 실습 파일 실행
 
 ```bash
-python app.py
+# 디지털 이미지 기초 실습
+python modules/week02_cnn/labs/01_digital_image_basics.py
+
+# 이미지 필터링 실습
+python modules/week02_cnn/labs/02_image_filtering_convolution.py
+
+# CNN 시각화 실습
+python modules/week02_cnn/labs/04_cnn_visualization.py
 ```
 
-### 4. 웹 브라우저로 접속
+### 통합 앱에서 실습
 
-```
-http://localhost:5001
-```
+1. `streamlit run app.py` 실행
+2. 사이드바에서 "Week 2: CNN" 선택
+3. 각 탭에서 실습 진행
 
-## 📖 사용법
+## 🤝 기여하기
 
-### 웹 인터페이스 기능
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-#### 🏠 메인 페이지 (/)
-- 모든 기능에 대한 통합 메뉴
-- 각 기능 페이지로 쉽게 이동
+## 📝 라이선스
 
-#### 🕵️ AI 사진 탐정 (/ai_studio)
-- 이미지 업로드 및 분석
-- 커스텀 질문으로 AI와 대화
-- 실시간 분석 결과 확인
+MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일 참조
 
-#### 🍌 Nano Banana (/nano_banana)
-- 텍스트 프롬프트로 이미지 생성
-- 기존 이미지 편집 및 스타일 변환
-- 다양한 스타일 템플릿 제공
+## 🙏 감사의 말
 
-### API 엔드포인트
+- HuggingFace 팀의 훌륭한 모델과 라이브러리
+- PyTorch 커뮤니티
+- Streamlit 팀의 직관적인 프레임워크
 
-#### 이미지 분석
-```javascript
-POST /analyze
-Content-Type: multipart/form-data
+## 📧 연락처
 
-FormData:
-- image: 이미지 파일
-- prompt: 분석 프롬프트 (선택)
-```
-
-#### 이미지 생성
-```javascript
-POST /generate
-Content-Type: application/json
-
-Body:
-{
-  "prompt": "생성할 이미지 설명"
-}
-```
-
-#### 연결 테스트
-```javascript
-GET /test
-
-Response:
-{
-  "success": true,
-  "analyzer": true,
-  "generator": true,
-  "gemini": true
-}
-```
-
-## 🔧 분석 유형
-
-| 유형 | 설명 | 예시 |
-|------|------|------|
-| `general` | 일반적인 이미지 분석 | "이 이미지를 자세히 분석해주세요" |
-| `objects` | 객체 검출 | "이미지에서 보이는 모든 객체를 찾아주세요" |
-| `emotions` | 감정 분석 | "이 이미지에서 느껴지는 감정을 분석해주세요" |
-| `technical` | 기술적 분석 | "이미지의 기술적 특징을 분석해주세요" |
-| `artistic` | 예술적 분석 | "이 이미지의 예술적 스타일을 분석해주세요" |
-
-## 🎨 생성 스타일
-
-| 스타일 | 설명 | 특징 |
-|--------|------|------|
-| `realistic` | 사실적 | 고품질, 사실적인 이미지 |
-| `cartoon` | 만화 | 컬러풀하고 만화적인 스타일 |
-| `artistic` | 예술적 | 화가의 작품 같은 스타일 |
-| `minimalist` | 미니멀 | 단순하고 깔끔한 스타일 |
-| `vintage` | 빈티지 | 레트로한 느낌의 스타일 |
-| `futuristic` | 미래적 | SF적인 미래 스타일 |
-
-## 📚 학습 체크리스트
-
-### ✅ 기본 설정
-- [ ] Python 환경 설정
-- [ ] 의존성 패키지 설치
-- [ ] Google API 키 발급 및 설정
-- [ ] Flask 서버 실행 테스트
-
-### ✅ 웹 인터페이스 사용
-- [ ] 메인 페이지 접속
-- [ ] AI 사진 탐정 기능 테스트
-- [ ] 이미지 생성 기능 테스트
-- [ ] API 연결 테스트
-
-### ✅ 모듈 이해
-- [ ] `app.py`의 라우팅 구조 이해
-- [ ] `config.py`의 설정 관리 방식 이해
-- [ ] `utils.py`의 유틸리티 함수 활용
-- [ ] `analyzer.py`의 이미지 분석 로직 이해
-- [ ] `generator.py`의 이미지 생성 로직 이해
-
-### ✅ 설계 원리
-- [ ] Flask 프레임워크 구조 이해
-- [ ] RESTful API 설계 원칙 이해
-- [ ] 모듈 간 결합도와 응집도 이해
-- [ ] 웹 보안 및 에러 처리 이해
-
-## 🔍 문제 해결
-
-### 일반적인 문제들
-
-**Q: API 키 오류가 발생합니다.**
-A: `.env` 파일에 올바른 API 키가 설정되어 있는지 확인하세요.
-
-**Q: 포트 5001이 이미 사용 중입니다.**
-A: `app.py`에서 포트 번호를 변경하거나, 기존 프로세스를 종료하세요.
-
-**Q: 이미지 업로드가 안 됩니다.**
-A: 파일 크기가 16MB를 초과하지 않는지, 지원되는 형식인지 확인하세요.
-
-**Q: 분석 결과가 나오지 않습니다.**
-A: 인터넷 연결과 API 키 상태를 확인하고, `/test` 페이지로 연결을 테스트하세요.
-
-## 🎯 다음 단계
-
-이 프로젝트를 완료한 후에는:
-1. **Week 2**: YOLO 객체 탐지 모듈 추가
-2. **Week 3**: 실시간 처리 기능 확장
-3. **Week 4**: 고급 이미지 처리 알고리즘 적용
-
-## 📄 라이선스
-
-이 프로젝트는 교육 목적으로 제작되었습니다.
+프로젝트에 대한 질문이나 제안 사항이 있으시면 언제든지 연락 주세요!
 
 ---
 
-**💡 핵심 메시지**: Google AI Studio는 단지 도구일 뿐입니다. 중요한 것은 **AI 모델 활용 방법론**과 **웹 애플리케이션 설계 원리**를 이해하는 것입니다!
+**Smart Vision App** - AI 비전의 세계로 떠나는 여정 🚀

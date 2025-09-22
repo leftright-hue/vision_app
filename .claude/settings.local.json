@@ -3,7 +3,16 @@
     "allow": [
       "WebSearch",
       "Bash(python:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(streamlit run:*)",
+      "Bash(tasklist)",
+      "Bash(findstr:*)",
+      "mcp__notion__API-retrieve-a-page",
+      "mcp__notion__API-get-block-children",
+      "mcp__notion__API-post-search",
+      "mcp__notion__API-patch-block-children",
+      "mcp__notion__API-delete-a-block",
+      "Bash(del \"C:\\smart_vision_app\\modules\\week02_cnn\\labs\\sample_data_generator.py\")"
     ],
     "deny": [],
     "ask": []
