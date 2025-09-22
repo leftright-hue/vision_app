@@ -16,6 +16,7 @@ ENV/
 
 # IDE
 .vscode/
+.claude/
 .idea/
 *.swp
 *.swo
@@ -29,6 +30,16 @@ Thumbs.db
 static/generated/
 static/uploads/
 *.log
+
+# Image files (실습 결과물)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.webp
+*.svg
 
 # Testing
 .pytest_cache/
