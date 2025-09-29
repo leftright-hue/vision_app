@@ -78,7 +78,7 @@ venv\Scripts\activate
 source venv/bin/activate
 
 # Streamlit 앱 실행
-python -m streamlit run app.py
+streamlit run app.py
 
 # 또는 실행 스크립트 사용 (Mac/Linux)
 ./run.sh

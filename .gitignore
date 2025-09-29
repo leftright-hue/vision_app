@@ -13,6 +13,7 @@ venv/
 ENV/
 .venv
 .claude/
+.vscode/
 
 # IDE
 .vscode/
@@ -29,15 +30,6 @@ Thumbs.db
 # Generated Files
 *.log
 
-# Image files (실습 결과물)
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.bmp
-*.tiff
-*.webp
-*.svg
 
 # Testing
 .pytest_cache/

@@ -7,6 +7,10 @@ import os
 import streamlit as st
 from PIL import Image
 import sys
+from dotenv import load_dotenv
+
+# .env 파일 로드
+load_dotenv()
 
 # 프로젝트 경로 설정
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -60,6 +64,26 @@ class SmartVisionApp:
             - Week 3: Transfer Learning ✅
             - Week 4: 멀티모달 AI (예정)
             """)
+
+            # API 사용 안내
+            st.header("🤖 API 사용")
+            import os
+            api_key = os.getenv('GOOGLE_API_KEY')
+            if api_key and api_key != 'your_api_key_here':
+                st.success("✅ Google Gemini API 연결됨")
+                st.caption("실전 프로젝트에서 실제 API를 사용할 수 있습니다.")
+            else:
+                st.warning("⚠️ API Key 미설정")
+                st.caption(".env 파일에 GOOGLE_API_KEY를 설정하세요.")
+                with st.expander("API 키 설정 방법"):
+                    st.markdown("""
+                    1. [Google AI Studio](https://makersuite.google.com/app/apikey)에서 API 키 발급
+                    2. `.env` 파일에 키 추가:
+                    ```
+                    GOOGLE_API_KEY=your_api_key_here
+                    ```
+                    3. 앱 재시작
+                    """)
 
             # 리소스 링크
             st.header("🔗 리소스")

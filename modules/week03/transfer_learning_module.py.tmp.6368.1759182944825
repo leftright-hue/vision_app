@@ -1663,7 +1663,7 @@ class TransferLearningModule(BaseImageProcessor):
                                 api_key = os.getenv('GOOGLE_API_KEY')
                                 if api_key:
                                     genai.configure(api_key=api_key)
-                                    model = genai.GenerativeModel('gemini-2.5-pro')
+                                    model = genai.GenerativeModel('gemini-1.5-flash')
 
                                     # 이미지 열기
                                     img = Image.open(uploaded_xray)
@@ -1811,7 +1811,7 @@ class TransferLearningModule(BaseImageProcessor):
         st.subheader("🎨 Neural Style Transfer")
 
         # API 사용 옵션
-        use_api = st.checkbox("🤖 Google Gemini API 사용 (이미지 생성)", key="use_api_style")
+        use_api = st.checkbox("🤖 Google Gemini API 사용 (실제 이미지 생성)", key="use_api_style")
 
         # 데이터셋 정보 표시
         with st.expander("📚 유명 예술 작품 스타일 & API 사용법", expanded=False):
@@ -1833,7 +1833,7 @@ class TransferLearningModule(BaseImageProcessor):
             ```python
             import google.generativeai as genai
             genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-            model = genai.GenerativeModel('gemini-2.5-pro')
+            model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
             prompt = f"이 이미지를 {style_name} 스타일로 변환해주세요"
             response = model.generate_content([prompt, content_img])
@@ -1889,7 +1889,7 @@ class TransferLearningModule(BaseImageProcessor):
                                 api_key = os.getenv('GOOGLE_API_KEY')
                                 if api_key:
                                     genai.configure(api_key=api_key)
-                                    model = genai.GenerativeModel('gemini-2.5-pro')
+                                    model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
                                     img = Image.open(content_image)
                                     style_name = style_choice if style_choice != "직접 업로드" else "업로드된 스타일"
@@ -1901,19 +1901,10 @@ class TransferLearningModule(BaseImageProcessor):
                                     """
 
                                     response = model.generate_content([prompt, img])
-                                    st.success("✅ API 이미지 생성 완료!")
-
-                                    # 생성된 이미지가 있으면 표시
-                                    if hasattr(response, 'parts') and len(response.parts) > 0:
-                                        for part in response.parts:
-                                            if hasattr(part, 'inline_data') and part.inline_data:
-                                                st.image(part.inline_data.data, caption="생성된 이미지")
-                                            elif hasattr(part, 'text'):
-                                                st.write("**Gemini 응답:**")
-                                                st.info(part.text)
-                                    else:
-                                        st.write("**Gemini 응답:**")
-                                        st.info(response.text)
+                                    st.success("✅ API 스타일 분석 완료!")
+                                    st.write("**Gemini 스타일 분석 결과:**")
+                                    st.info(response.text)
+                                    st.caption("💡 참고: Gemini는 스타일 분석 및 설명을 제공합니다. 실제 이미지 생성은 별도의 이미지 생성 모델이 필요합니다.")
                                 else:
                                     st.error("API Key가 설정되지 않았습니다.")
                             except Exception as e:

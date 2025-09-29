@@ -1663,7 +1663,7 @@ class TransferLearningModule(BaseImageProcessor):
                                 api_key = os.getenv('GOOGLE_API_KEY')
                                 if api_key:
                                     genai.configure(api_key=api_key)
-                                    model = genai.GenerativeModel('gemini-2.5-pro')
+                                    model = genai.GenerativeModel('gemini-1.5-flash')
 
                                     # 이미지 열기
                                     img = Image.open(uploaded_xray)
@@ -1760,83 +1760,38 @@ class TransferLearningModule(BaseImageProcessor):
 
                 if st.button("🔍 검사 시작", key="start_qc"):
                     with st.spinner("PCB 분석 중..."):
-                        if use_api:
-                            # Google Vision API 사용
-                            try:
-                                import os
-                                import google.generativeai as genai
-                                from PIL import Image
+                        import random
+                        # 불량 검출 시뮬레이션
+                        st.success("검사 완료!")
 
-                                api_key = os.getenv('GOOGLE_API_KEY')
-                                if api_key:
-                                    genai.configure(api_key=api_key)
-                                    model = genai.GenerativeModel('gemini-1.5-flash')
-
-                                    img = Image.open(uploaded_pcb)
-                                    prompt = f"""
-                                    이 PCB 이미지를 분석하여 다음 불량을 검출해주세요:
-                                    {", ".join(defect_types)}
-
-                                    결과 형식:
-                                    1. 불량 종류
-                                    2. 위치 (가능하면)
-                                    3. 심각도
-                                    """
-
-                                    response = model.generate_content([prompt, img])
-                                    st.success("✅ API 검사 완료!")
-                                    st.write("**Gemini 분석 결과:**")
-                                    st.info(response.text)
-                                else:
-                                    st.error("API Key가 없습니다.")
-                            except Exception as e:
-                                st.error(f"API 오류: {str(e)}")
+                        if random.random() > 0.3:  # 70% 확률로 불량 검출
+                            defect = random.choice(defect_types) if defect_types else "단락"
+                            st.error(f"⚠️ 불량 검출: {defect}")
+                            st.metric("불량 위치", "(234, 567) 픽셀")
+                            st.metric("신뢰도", f"{random.randint(85, 99)}%")
                         else:
-                            # 시뮬레이션
-                            import random
-                            st.success("검사 완료!")
+                            st.success("✅ 정상 제품입니다")
 
-                            if random.random() > 0.3:  # 70% 확률로 불량
-                                defect = random.choice(defect_types) if defect_types else "단락"
-                                st.error(f"⚠️ 불량 검출: {defect}")
-                                st.metric("불량 위치", "(234, 567) 픽셀")
-                                st.metric("신뢰도", f"{random.randint(85, 99)}%")
-                            else:
-                                st.success("✅ 정상 제품")
-
-                        st.caption("⚠️ 교육 목적입니다.")
+                        st.caption("⚠️ 시뮬레이션 결과입니다.")
 
     def _render_style_transfer_project(self):
         """스타일 전이 프로젝트"""
         st.subheader("🎨 Neural Style Transfer")
 
-        # API 사용 옵션
-        use_api = st.checkbox("🤖 Google Gemini API 사용 (이미지 생성)", key="use_api_style")
-
         # 데이터셋 정보 표시
-        with st.expander("📚 유명 예술 작품 스타일 & API 사용법", expanded=False):
+        with st.expander("📚 유명 예술 작품 스타일", expanded=False):
             st.markdown("""
             ### 공개 도메인 예술 작품
             - **Van Gogh - Starry Night**: [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg)
             - **Monet 작품들**: 인상파 스타일
             - **Picasso 작품들**: 큐비즘 스타일
 
-            **💡 실제 구현 시 (PyTorch)**:
+            **💡 실제 구현 시**:
             ```python
             # VGG19 모델 사용
             vgg = torchvision.models.vgg19(pretrained=True).features
             # Content loss + Style loss 최적화
             total_loss = content_weight * content_loss + style_weight * style_loss
-            ```
-
-            **🤖 Gemini API 사용 (이미지 생성)**:
-            ```python
-            import google.generativeai as genai
-            genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-            model = genai.GenerativeModel('gemini-2.5-pro')
-
-            prompt = f"이 이미지를 {style_name} 스타일로 변환해주세요"
-            response = model.generate_content([prompt, content_img])
             ```
             """)
 
@@ -1879,66 +1834,18 @@ class TransferLearningModule(BaseImageProcessor):
 
                 if st.button("🎨 스타일 전이", key="transfer_style"):
                     with st.spinner("스타일 전이 중..."):
-                        if use_api:
-                            # Google Gemini API 사용
-                            try:
-                                import os
-                                import google.generativeai as genai
-                                from PIL import Image
-
-                                api_key = os.getenv('GOOGLE_API_KEY')
-                                if api_key:
-                                    genai.configure(api_key=api_key)
-                                    model = genai.GenerativeModel('gemini-2.5-pro')
-
-                                    img = Image.open(content_image)
-                                    style_name = style_choice if style_choice != "직접 업로드" else "업로드된 스타일"
-
-                                    prompt = f"""
-                                    이 이미지를 {style_name} 스타일로 변환해주세요.
-                                    아티스트의 특징적인 붓터치, 색상 팔레트, 구도를 적용해주세요.
-                                    스타일 강도: {style_weight * 100}%
-                                    """
-
-                                    response = model.generate_content([prompt, img])
-                                    st.success("✅ API 이미지 생성 완료!")
-
-                                    # 생성된 이미지가 있으면 표시
-                                    if hasattr(response, 'parts') and len(response.parts) > 0:
-                                        for part in response.parts:
-                                            if hasattr(part, 'inline_data') and part.inline_data:
-                                                st.image(part.inline_data.data, caption="생성된 이미지")
-                                            elif hasattr(part, 'text'):
-                                                st.write("**Gemini 응답:**")
-                                                st.info(part.text)
-                                    else:
-                                        st.write("**Gemini 응답:**")
-                                        st.info(response.text)
-                                else:
-                                    st.error("API Key가 설정되지 않았습니다.")
-                            except Exception as e:
-                                st.error(f"API 오류: {str(e)}")
-                                st.info("시뮬레이션 모드로 전환합니다...")
-                                import time
-                                time.sleep(2)
-                                st.image(content_image, caption="결과 (시뮬레이션)")
-                        else:
-                            # 시뮬레이션
-                            import time
-                            time.sleep(2)  # 처리 시뮬레이션
-                            st.success("완료!")
-                            st.image(content_image, caption="결과 (시뮬레이션)")
-                            st.caption("⚠️ 실제 스타일 전이가 아닌 시뮬레이션입니다")
+                        import time
+                        time.sleep(2)  # 처리 시뮬레이션
+                        st.success("완료!")
+                        st.image(content_image, caption="결과 (시뮬레이션)")
+                        st.caption("⚠️ 실제 스타일 전이가 아닌 시뮬레이션입니다")
 
     def _render_product_search_project(self):
         """상품 검색 시스템 프로젝트"""
         st.subheader("🔍 시각적 상품 검색 시스템")
 
-        # API 사용 옵션
-        use_api = st.checkbox("🤖 Google Gemini API 사용 (실제 검색)", key="use_api_search")
-
         # 데이터셋 정보 표시
-        with st.expander("📚 사용 가능한 데이터셋 & API 사용법", expanded=False):
+        with st.expander("📚 사용 가능한 데이터셋", expanded=False):
             st.markdown("""
             ### Fashion-MNIST Dataset
             - **GitHub**: [zalandoresearch/fashion-mnist](https://github.com/zalandoresearch/fashion-mnist)
@@ -1946,23 +1853,12 @@ class TransferLearningModule(BaseImageProcessor):
             - **이미지 수**: 70,000개 (28x28 흑백)
             - **카테고리**: 티셔츠, 바지, 드레스, 코트, 샌들, 셔츠, 스니커즈, 가방, 부츠
 
-            **💡 실제 구현 시 (CLIP)**:
+            **💡 실제 구현 시**:
             ```python
             # CLIP 모델 사용 (텍스트-이미지 매칭)
             import clip
             model, preprocess = clip.load("ViT-B/32")
             # 텍스트와 이미지 임베딩 비교
-            ```
-
-            **🤖 Gemini API 사용 (이미지 분석 & 검색)**:
-            ```python
-            import google.generativeai as genai
-            genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-            model = genai.GenerativeModel('gemini-1.5-flash')
-
-            # 이미지 설명 생성
-            response = model.generate_content(["이 상품을 설명해주세요", image])
-            # 유사 상품 추천
             ```
             """)
 
@@ -1979,36 +1875,7 @@ class TransferLearningModule(BaseImageProcessor):
                 query = st.text_input("검색어 입력", placeholder="빨간 운동화", key="text_query")
                 if st.button("🔍 검색", key="search_text"):
                     with st.spinner("검색 중..."):
-                        if use_api and query:
-                            try:
-                                import os
-                                import google.generativeai as genai
-
-                                api_key = os.getenv('GOOGLE_API_KEY')
-                                if api_key:
-                                    genai.configure(api_key=api_key)
-                                    model = genai.GenerativeModel('gemini-1.5-flash')
-
-                                    prompt = f"""
-                                    패션 상품 검색: "{query}"
-
-                                    이 검색어와 가장 잘 매칭되는 상품 3개를 추천해주세요.
-                                    각 상품에 대해:
-                                    1. 상품명
-                                    2. 매칭 점수 (0-100%)
-                                    3. 추천 이유
-                                    """
-
-                                    response = model.generate_content(prompt)
-                                    st.success("✅ API 검색 완료!")
-                                    st.write("**Gemini 검색 결과:**")
-                                    st.info(response.text)
-                                else:
-                                    st.error("API Key가 설정되지 않았습니다.")
-                            except Exception as e:
-                                st.error(f"API 오류: {str(e)}")
-                        else:
-                            st.success("유사한 상품을 찾았습니다!")
+                        st.success("유사한 상품을 찾았습니다!")
 
             elif search_method == "이미지로 검색":
                 query_img = st.file_uploader("참조 이미지", type=['png', 'jpg', 'jpeg'], key="img_query")
@@ -2016,76 +1883,14 @@ class TransferLearningModule(BaseImageProcessor):
                     st.image(query_img, caption="검색 이미지")
                     if st.button("🔍 검색", key="search_img"):
                         with st.spinner("유사 이미지 검색 중..."):
-                            if use_api:
-                                try:
-                                    import os
-                                    import google.generativeai as genai
-                                    from PIL import Image
-
-                                    api_key = os.getenv('GOOGLE_API_KEY')
-                                    if api_key:
-                                        genai.configure(api_key=api_key)
-                                        model = genai.GenerativeModel('gemini-1.5-flash')
-
-                                        img = Image.open(query_img)
-                                        prompt = """
-                                        이 상품 이미지를 분석하고, 유사한 상품 3개를 추천해주세요.
-                                        각 상품에 대해:
-                                        1. 상품 카테고리
-                                        2. 유사도 점수 (0-100%)
-                                        3. 추천 이유
-                                        """
-
-                                        response = model.generate_content([prompt, img])
-                                        st.success("✅ API 검색 완료!")
-                                        st.write("**Gemini 검색 결과:**")
-                                        st.info(response.text)
-                                    else:
-                                        st.error("API Key가 설정되지 않았습니다.")
-                                except Exception as e:
-                                    st.error(f"API 오류: {str(e)}")
-                            else:
-                                st.success("유사한 상품을 찾았습니다!")
+                            st.success("유사한 상품을 찾았습니다!")
 
             else:  # 하이브리드
                 text_q = st.text_input("텍스트", placeholder="편안한 운동화", key="hybrid_text")
                 img_q = st.file_uploader("이미지", type=['png', 'jpg', 'jpeg'], key="hybrid_img")
                 if st.button("🔍 검색", key="search_hybrid"):
                     with st.spinner("하이브리드 검색 중..."):
-                        if use_api and text_q and img_q:
-                            try:
-                                import os
-                                import google.generativeai as genai
-                                from PIL import Image
-
-                                api_key = os.getenv('GOOGLE_API_KEY')
-                                if api_key:
-                                    genai.configure(api_key=api_key)
-                                    model = genai.GenerativeModel('gemini-1.5-flash')
-
-                                    img = Image.open(img_q)
-                                    prompt = f"""
-                                    하이브리드 검색:
-                                    - 텍스트 쿼리: "{text_q}"
-                                    - 이미지: 업로드된 참조 이미지
-
-                                    텍스트와 이미지를 모두 고려하여 최적의 상품 3개를 추천해주세요.
-                                    각 상품에 대해:
-                                    1. 상품명
-                                    2. 매칭 점수 (0-100%)
-                                    3. 추천 이유
-                                    """
-
-                                    response = model.generate_content([prompt, img])
-                                    st.success("✅ API 검색 완료!")
-                                    st.write("**Gemini 검색 결과:**")
-                                    st.info(response.text)
-                                else:
-                                    st.error("API Key가 설정되지 않았습니다.")
-                            except Exception as e:
-                                st.error(f"API 오류: {str(e)}")
-                        else:
-                            st.success("최적의 상품을 찾았습니다!")
+                        st.success("최적의 상품을 찾았습니다!")
 
         with col2:
             st.markdown("**검색 결과**")

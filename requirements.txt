@@ -34,7 +34,7 @@ typing_extensions==4.15.0
 typing-inspection==0.4.1
 
 # Google API Dependencies
-grpcio==1.74.0
+grpcio==1.75.1
 grpcio-status==1.71.2
 httplib2==0.30.0
 uritemplate==4.2.0
