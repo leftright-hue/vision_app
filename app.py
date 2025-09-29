@@ -18,6 +18,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # 모듈 임포트
 from modules.week02_cnn.cnn_module import CNNModule
 from modules.week03.transfer_learning_module import TransferLearningModule
+from modules.week04.vision_transformer_module import VisionTransformerModule
+from modules.week05.object_detection_module import ObjectDetectionModule
 
 # 페이지 설정
 st.set_page_config(
@@ -34,7 +36,8 @@ class SmartVisionApp:
         self.modules = {
             'Week 2: CNN': CNNModule(),
             'Week 3: Transfer Learning': TransferLearningModule(),
-            # Week 4 등은 나중에 추가
+            'Week 4: Vision Transformer': VisionTransformerModule(),
+            'Week 5: Object Detection': ObjectDetectionModule(),
         }
 
     def run(self):
@@ -62,7 +65,8 @@ class SmartVisionApp:
 
             - Week 2: CNN과 이미지 처리 ✅
             - Week 3: Transfer Learning ✅
-            - Week 4: 멀티모달 AI (예정)
+            - Week 4: Vision Transformer ✅
+            - Week 5: Object Detection ✅
             """)
 
             # API 사용 안내
@@ -123,7 +127,8 @@ class SmartVisionApp:
             progress_data = {
                 "Week 2: CNN": 100,
                 "Week 3: Transfer Learning": 100,
-                "Week 4: Multimodal AI": 0,
+                "Week 4: Vision Transformer": 100,
+                "Week 5: Object Detection": 100,
             }
 
             for week, progress in progress_data.items():
@@ -149,11 +154,20 @@ class SmartVisionApp:
             - CLIP 기반 검색
             """)
 
-            st.subheader("🔜 Week 4: Multimodal AI")
+            st.subheader("✅ Week 4: Vision Transformer")
             st.markdown("""
-            - 이미지-텍스트 통합
-            - CLIP 모델
-            - 비전-언어 태스크
+            - Self-Attention 메커니즘
+            - Vision Transformer (ViT)
+            - DINO 자기지도학습
+            - 최신 모델 비교
+            """)
+
+            st.subheader("✅ Week 5: Object Detection")
+            st.markdown("""
+            - R-CNN 계열 발전사
+            - YOLO 아키텍처
+            - IoU & mAP 평가지표
+            - 실시간 객체 탐지
             """)
 
         st.markdown("---")
