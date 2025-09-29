@@ -13,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # 모듈 임포트
 from modules.week02_cnn.cnn_module import CNNModule
+from modules.week03.transfer_learning_module import TransferLearningModule
 
 # 페이지 설정
 st.set_page_config(
@@ -28,7 +29,8 @@ class SmartVisionApp:
     def __init__(self):
         self.modules = {
             'Week 2: CNN': CNNModule(),
-            # Week 3, 4 등은 나중에 추가
+            'Week 3: Transfer Learning': TransferLearningModule(),
+            # Week 4 등은 나중에 추가
         }
 
     def run(self):
@@ -54,8 +56,8 @@ class SmartVisionApp:
 
             AI 비전 학습 통합 플랫폼
 
-            - Week 2: CNN과 이미지 처리
-            - Week 3: Transfer Learning (예정)
+            - Week 2: CNN과 이미지 처리 ✅
+            - Week 3: Transfer Learning ✅
             - Week 4: 멀티모달 AI (예정)
             """)
 
@@ -68,8 +70,8 @@ class SmartVisionApp:
             """)
 
         # 메인 컨텐츠
-        if selected_module == 'Week 2: CNN':
-            self.modules[selected_module].render_ui()
+        if selected_module in self.modules:
+            self.modules[selected_module].render()
         else:
             # 홈 페이지
             self.render_home()
@@ -96,7 +98,7 @@ class SmartVisionApp:
             st.header("📈 학습 진도")
             progress_data = {
                 "Week 2: CNN": 100,
-                "Week 3: Transfer Learning": 0,
+                "Week 3: Transfer Learning": 100,
                 "Week 4: Multimodal AI": 0,
             }
 
@@ -115,11 +117,12 @@ class SmartVisionApp:
             - HuggingFace 활용
             """)
 
-            st.subheader("🔜 Week 3: Transfer Learning")
+            st.subheader("✅ Week 3: Transfer Learning")
             st.markdown("""
             - 사전훈련 모델 활용
             - Fine-tuning 기법
-            - 도메인 적응
+            - Multi-modal API 비교
+            - CLIP 기반 검색
             """)
 
             st.subheader("🔜 Week 4: Multimodal AI")

@@ -212,7 +212,7 @@ class CNNModule(BaseImageProcessor):
         """Week 2 모듈 렌더링 - 메인 메서드"""
         self.render_ui()
 
-    def render_ui(self):
+    def render_ui(self)
         """Week 2 모듈 UI 렌더링"""
         st.title("🧠 Week 2: CNN과 디지털 이미지")
         st.markdown("---")
