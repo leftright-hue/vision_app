@@ -752,7 +752,7 @@ def soft_nms(detections, sigma=0.5):
 
         if uploaded_file:
             image = Image.open(uploaded_file)
-            st.image(image, caption="업로드된 이미지", use_container_width=True)
+            st.image(image, caption="업로드된 이미지", width='stretch')
 
             if st.button("객체 탐지 실행", key="classroom_detect"):
                 if use_api:
@@ -850,7 +850,7 @@ results = model.predict('classroom.jpg')
 
         if uploaded_file:
             image = Image.open(uploaded_file)
-            st.image(image, caption="업로드된 이미지", use_container_width=True)
+            st.image(image, caption="업로드된 이미지", width='stretch')
 
             if st.button("얼굴 감지 실행", key="face_detect"):
                 if use_api:
@@ -921,7 +921,7 @@ results = model.predict('classroom.jpg')
 
         if uploaded_file:
             image = Image.open(uploaded_file)
-            st.image(image, caption="업로드된 이미지", use_container_width=True)
+            st.image(image, caption="업로드된 이미지", width='stretch')
 
             if st.button("번호판 인식 실행", key="plate_detect"):
                 if use_api:
@@ -991,7 +991,7 @@ results = model.predict('classroom.jpg')
 
         if uploaded_file:
             image = Image.open(uploaded_file)
-            st.image(image, caption="업로드된 이미지", use_container_width=True)
+            st.image(image, caption="업로드된 이미지", width='stretch')
 
             if st.button("손동작 인식 실행", key="hand_detect"):
                 if use_api:

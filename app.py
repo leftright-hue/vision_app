@@ -12,14 +12,39 @@ from dotenv import load_dotenv
 # .env 파일 로드
 load_dotenv()
 
+# Configure matplotlib font for Korean glyphs early to avoid missing glyph warnings
+try:
+    from core.matplotlib_fonts import set_korean_font
+    set_korean_font()
+except Exception:
+    # Non-fatal: proceed if font setup fails
+    pass
+
 # 프로젝트 경로 설정
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# 모듈 임포트
-from modules.week02_cnn.cnn_module import CNNModule
-from modules.week03.transfer_learning_module import TransferLearningModule
-from modules.week04.vision_transformer_module import VisionTransformerModule
-from modules.week05.object_detection_module import ObjectDetectionModule
+# 모듈 임포트 (무거운 의존성은 지연 로드)
+def _try_import_class(module_path: str, class_name: str):
+    """Try to import a class and return it, otherwise return None and print the error.
+
+    This allows the Streamlit app to start even when heavy deps (torch, torchvision)
+    are not installed. Modules will be enabled only if import succeeds.
+    """
+    try:
+        module = __import__(module_path, fromlist=[class_name])
+        return getattr(module, class_name)
+    except Exception as e:
+        # Print to console for debugging; Streamlit will show warnings in the UI when appropriate
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+# lazy imports for classroom modules
+CNNModule = _try_import_class('modules.week02_cnn.cnn_module', 'CNNModule')
+TransferLearningModule = _try_import_class('modules.week03.transfer_learning_module', 'TransferLearningModule')
+VisionTransformerModule = _try_import_class('modules.week04.vision_transformer_module', 'VisionTransformerModule')
+ObjectDetectionModule = _try_import_class('modules.week05.object_detection_module', 'ObjectDetectionModule')
 
 # 페이지 설정
 st.set_page_config(
@@ -33,11 +58,13 @@ class SmartVisionApp:
     """메인 애플리케이션 클래스"""
 
     def __init__(self):
+        # 저장: 모듈의 클래스 레퍼런스 또는 None
+        # 인스턴스화는 렌더링 시점에 수행하여 불필요한 초기화를 피합니다.
         self.modules = {
-            'Week 2: CNN': CNNModule(),
-            'Week 3: Transfer Learning': TransferLearningModule(),
-            'Week 4: Vision Transformer': VisionTransformerModule(),
-            'Week 5: Object Detection': ObjectDetectionModule(),
+            'Week 2: CNN': CNNModule,
+            'Week 3: Transfer Learning': TransferLearningModule,
+            'Week 4: Vision Transformer': VisionTransformerModule,
+            'Week 5: Object Detection': ObjectDetectionModule,
         }
 
     def run(self):
@@ -99,7 +126,20 @@ class SmartVisionApp:
 
         # 메인 컨텐츠
         if selected_module in self.modules:
-            self.modules[selected_module].render()
+            module_cls = self.modules[selected_module]
+            if module_cls is None:
+                st.warning(
+                    "선택한 모듈은 현재 사용 불가합니다. 필요한 패키지가 설치되어 있지 않거나 import 중 오류가 발생했습니다.\n"
+                    "`pip install -r requirements.txt`로 의존성을 설치한 뒤 재시작하세요."
+                )
+            else:
+                try:
+                    module = module_cls()
+                    module.render()
+                except Exception as e:
+                    st.error(f"모듈을 초기화하거나 렌더링하는 중 오류가 발생했습니다: {e}")
+                    import traceback
+                    st.text(traceback.format_exc())
         else:
             # 홈 페이지
             self.render_home()
@@ -178,18 +218,18 @@ class SmartVisionApp:
         quick_start_col1, quick_start_col2, quick_start_col3 = st.columns(3)
 
         with quick_start_col1:
-            if st.button("🔬 이미지 분석 시작", use_container_width=True):
+            if st.button("🔬 이미지 분석 시작", width='stretch'):
                 st.session_state['selected_module'] = 'Week 2: CNN'
                 st.rerun()
 
         with quick_start_col2:
-            if st.button("🎨 필터 적용하기", use_container_width=True):
+            if st.button("🎨 필터 적용하기", width='stretch'):
                 st.session_state['selected_module'] = 'Week 2: CNN'
                 st.session_state['selected_tab'] = 'filtering'
                 st.rerun()
 
         with quick_start_col3:
-            if st.button("🤖 AI 모델 테스트", use_container_width=True):
+            if st.button("🤖 AI 모델 테스트", width='stretch'):
                 st.session_state['selected_module'] = 'Week 2: CNN'
                 st.session_state['selected_tab'] = 'huggingface'
                 st.rerun()

@@ -1078,7 +1078,7 @@ class TransferLearningModule(BaseImageProcessor):
             st.subheader("📊 API 기능 비교")
 
             comparison_df = self.multimodal_helper.get_api_comparison_data(selected_apis)
-            st.dataframe(comparison_df, use_container_width=True)
+            st.dataframe(comparison_df)
 
             # 성능 벤치마크
             st.subheader("⚡ 성능 벤치마크")
@@ -1187,7 +1187,7 @@ class TransferLearningModule(BaseImageProcessor):
             if len(models) >= 2:
                 # 성능 메트릭 표시
                 metrics_df = self.transfer_helper.get_model_metrics(models)
-                st.dataframe(metrics_df, use_container_width=True)
+                st.dataframe(metrics_df)
 
                 # 차트 생성
                 fig = self.transfer_helper.create_performance_chart(models)

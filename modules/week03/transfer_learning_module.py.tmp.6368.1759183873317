@@ -1231,7 +1231,7 @@ class TransferLearningModule(BaseImageProcessor):
             st.subheader("📊 API 기능 비교")
 
             comparison_df = self.multimodal_helper.get_api_comparison_data(selected_apis)
-            st.dataframe(comparison_df, use_container_width=True)
+            st.dataframe(comparison_df)
 
             # 성능 벤치마크
             st.subheader("⚡ 성능 벤치마크")
@@ -1296,7 +1296,7 @@ class TransferLearningModule(BaseImageProcessor):
             col1, col2 = st.columns([1, 1])
 
             with col1:
-                st.image(image, caption="원본 이미지", use_container_width=True)
+                st.image(image, caption="원본 이미지", width='stretch')
 
                 model_choice = st.selectbox(
                     "특징 추출 모델",
@@ -1344,7 +1344,7 @@ class TransferLearningModule(BaseImageProcessor):
                         """)
 
             with col2:
-                if st.button("🎨 특징 추출 실행", key="extract_features", use_container_width=True):
+                if st.button("🎨 특징 추출 실행", key="extract_features", width='stretch'):
                     with st.spinner(f"{model_choice}에서 {layer_choice} 특징을 추출하는 중..."):
                         # 특징 추출 시각화 (시뮬레이션)
                         fig = self.transfer_helper.visualize_features(image, model_choice, layer_choice)
@@ -1448,7 +1448,7 @@ class TransferLearningModule(BaseImageProcessor):
             if len(models) >= 2:
                 # 성능 메트릭 표시
                 metrics_df = self.transfer_helper.get_model_metrics(models)
-                st.dataframe(metrics_df, use_container_width=True)
+                st.dataframe(metrics_df)
 
                 # 차트 생성
                 fig = self.transfer_helper.create_performance_chart(models)

@@ -207,7 +207,7 @@ class IntegratedImageAnalysisSystem:
 
         with col1:
             st.subheader("📷 원본 이미지")
-            st.image(image, use_container_width=True)
+            st.image(image, width='stretch')
 
         with col2:
             st.subheader("📊 이미지 속성")
@@ -228,13 +228,13 @@ class IntegratedImageAnalysisSystem:
 
         with col1:
             st.write("원본 이미지")
-            st.image(image, use_container_width=True)
+            st.image(image, width='stretch')
 
         with col2:
             filter_name = st.selectbox("필터 선택", list(self.filters.keys()))
             filtered_image = self.apply_filter(image, filter_name)
             st.write(f"{filter_name} 필터 적용")
-            st.image(filtered_image, use_container_width=True)
+            st.image(filtered_image, width='stretch')
 
         # 필터 설명
         if filter_name != 'None':
@@ -248,7 +248,7 @@ class IntegratedImageAnalysisSystem:
         col1, col2 = st.columns(2)
 
         with col1:
-            if st.button("🏷️ 이미지 분류", use_container_width=True):
+            if st.button("🏷️ 이미지 분류", width='stretch'):
                 with st.spinner("분류 중..."):
                     results = self.models['classifier'](image)
                     st.success("분류 완료!")
@@ -257,14 +257,14 @@ class IntegratedImageAnalysisSystem:
                         st.write(f"{i+1}. **{result['label']}**: {result['score']:.2%}")
 
         with col2:
-            if st.button("🎯 객체 검출", use_container_width=True):
+            if st.button("🎯 객체 검출", width='stretch'):
                 with st.spinner("검출 중..."):
                     results = self.models['detector'](image)
                     st.success(f"{len(results)}개 객체 검출!")
 
                     # 결과 시각화
                     img_with_boxes = self.draw_detection_boxes(image, results)
-                    st.image(img_with_boxes, use_container_width=True)
+                    st.image(img_with_boxes, width='stretch')
 
                     # 검출 결과 목록
                     for obj in results:
@@ -283,11 +283,11 @@ class IntegratedImageAnalysisSystem:
             if i % 2 == 0:
                 with col1:
                     st.write(name)
-                    st.image(edge_img, use_container_width=True, clamp=True)
+                    st.image(edge_img, width='stretch', clamp=True)
             else:
                 with col2:
                     st.write(name)
-                    st.image(edge_img, use_container_width=True, clamp=True)
+                    st.image(edge_img, width='stretch', clamp=True)
 
     def integrated_analysis(self, image):
         """통합 분석 모드"""

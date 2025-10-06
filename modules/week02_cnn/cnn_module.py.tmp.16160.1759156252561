@@ -312,7 +312,7 @@ class CNNModule(BaseImageProcessor):
                     [40,  90,  140, 190, 255]
                 ], dtype=np.uint8)
 
-                st.image(grayscale_example, caption="5x5 그레이스케일 이미지", use_container_width=True)
+                st.image(grayscale_example, caption="5x5 그레이스케일 이미지", width='stretch')
                 st.caption("💡 **설명**: 각 픽셀은 0(검정)~255(흰색) 사이의 값을 가집니다.")
                 st.code(f"Shape: {grayscale_example.shape}\nDtype: {grayscale_example.dtype}")
 
@@ -328,7 +328,7 @@ class CNNModule(BaseImageProcessor):
                 color_pil = PILImage.fromarray(color_example, mode='RGB')
                 color_pil_resized = color_pil.resize((100, 100), PILImage.Resampling.NEAREST)
 
-                st.image(color_pil_resized, caption="2x2 RGB 컬러 이미지 (확대)", use_container_width=True)
+                st.image(color_pil_resized, caption="2x2 RGB 컬러 이미지 (확대)", width='stretch')
                 st.caption("💡 **설명**: RGB 이미지는 3개 채널(R, G, B)의 조합입니다.")
                 st.code(f"원본 Shape: {color_example.shape}\nDtype: {color_example.dtype}")
 
@@ -360,15 +360,15 @@ class CNNModule(BaseImageProcessor):
             col1, col2, col3 = st.columns(3)
 
             with col1:
-                st.image(gradient_img, caption="RGB 원본", use_container_width=True)
+                st.image(gradient_img, caption="RGB 원본", width='stretch')
                 st.caption("💡 3개 채널 (R, G, B)")
 
             with col2:
-                st.image(hsv_img, caption="HSV 색상공간", use_container_width=True)
+                st.image(hsv_img, caption="HSV 색상공간", width='stretch')
                 st.caption("💡 색상, 채도, 명도")
 
             with col3:
-                st.image(gray_img, caption="그레이스케일", use_container_width=True)
+                st.image(gray_img, caption="그레이스케일", width='stretch')
                 st.caption("💡 단일 채널 (밝기)")
 
             st.markdown("---")
@@ -389,7 +389,7 @@ class CNNModule(BaseImageProcessor):
             cols = st.columns(3)
             for idx, (name, img) in enumerate(operations.items()):
                 with cols[idx % 3]:
-                    st.image(img, caption=name, use_container_width=True)
+                    st.image(img, caption=name, width='stretch')
                     st.caption(f"픽셀 값: {img[0, 0]}")
 
             st.markdown("---")
@@ -536,7 +536,7 @@ ISO: 400
 
                 with col1:
                     st.subheader("원본 이미지")
-                    st.image(image, use_container_width=True)
+                    st.image(image, width='stretch')
 
                     # 이미지 정보
                     st.subheader("📊 이미지 정보")
@@ -552,10 +552,10 @@ ISO: 400
                         channels = ['Red', 'Green', 'Blue']
                         for i, channel in enumerate(channels):
                             st.write(f"**{channel} Channel**")
-                            st.image(img_array[:, :, i], use_container_width=True)
+                            st.image(img_array[:, :, i], width='stretch')
                     else:
                         st.write("**Grayscale Image**")
-                        st.image(img_array, use_container_width=True)
+                        st.image(img_array, width='stretch')
             else:
                 st.info("👆 이미지를 업로드하여 직접 분석해보세요!")
 
@@ -592,11 +592,11 @@ ISO: 400
                 cols = st.columns([1, 1, 2])
 
                 with cols[0]:
-                    st.image(checkerboard, caption="원본", use_container_width=True)
+                    st.image(checkerboard, caption="원본", width='stretch')
 
                 with cols[1]:
                     filtered = cv2.filter2D(checkerboard, -1, kernel)
-                    st.image(filtered, caption=f"{filter_name} 적용", use_container_width=True)
+                    st.image(filtered, caption=f"{filter_name} 적용", width='stretch')
 
                 with cols[2]:
                     st.code(f"커널:\n{kernel}", language='python')
@@ -678,11 +678,11 @@ ISO: 400
 
                 with col1:
                     st.subheader("원본")
-                    st.image(image, use_container_width=True)
+                    st.image(image, width='stretch')
 
                 with col2:
                     st.subheader(f"{filter_name} 적용")
-                    st.image(filtered_image, use_container_width=True)
+                    st.image(filtered_image, width='stretch')
 
                 # 필터 정보 표시
                 if filter_name != 'None':
@@ -1170,7 +1170,7 @@ ISO: 400
                                     img = feature[0, i].detach().numpy()
                                     # 정규화
                                     img = (img - img.min()) / (img.max() - img.min() + 1e-8)
-                                    st.image(img, caption=f"채널 {i+1}", use_container_width=True)
+                                    st.image(img, caption=f"채널 {i+1}", width='stretch')
 
                             if feature.shape[1] > 4:
                                 st.caption(f"... 총 {feature.shape[1]}개 채널 중 4개만 표시")
@@ -1189,7 +1189,7 @@ ISO: 400
 
         if uploaded_file:
             image = Image.open(uploaded_file)
-            st.image(image, caption="업로드된 이미지", use_container_width=True)
+            st.image(image, caption="업로드된 이미지", width='stretch')
 
             # 모델 선택
             task = st.selectbox(
@@ -1214,7 +1214,7 @@ ISO: 400
 
                         # 박스 그리기
                         img_with_boxes = self.ai_manager.draw_detection_boxes(image, results)
-                        st.image(img_with_boxes, caption="검출 결과", use_container_width=True)
+                        st.image(img_with_boxes, caption="검출 결과", width='stretch')
 
                         for obj in results:
                             st.write(f"- **{obj['label']}**: {obj['score']:.2%}")
@@ -1235,7 +1235,7 @@ ISO: 400
                                 mask = np.array(result['mask'])
                                 if len(mask.shape) == 3:
                                     mask = mask[:,:,0]  # 첫 번째 채널만 사용
-                                st.image(mask, caption=f"{label} 마스크", use_container_width=True)
+                                st.image(mask, caption=f"{label} 마스크", width='stretch')
                         else:
                             st.warning("세그멘테이션 결과가 없습니다.")
 
@@ -1310,7 +1310,7 @@ ISO: 400
             cols = st.columns(len(results["filtered"]))
             for idx, (name, img) in enumerate(results["filtered"].items()):
                 cols[idx].write(name)
-                cols[idx].image(img, use_container_width=True)
+                cols[idx].image(img, width='stretch')
 
         if "AI 분석" in options:
             st.subheader("🤖 AI 분류 결과")
@@ -1319,7 +1319,7 @@ ISO: 400
 
         if "엣지 검출" in options:
             st.subheader("🔍 엣지 검출")
-            st.image(results["edges"], use_container_width=True)
+            st.image(results["edges"], width='stretch')
 
     def _create_simple_cnn(self):
         """간단한 CNN 모델 생성"""
