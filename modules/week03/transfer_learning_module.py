@@ -1663,7 +1663,7 @@ class TransferLearningModule(BaseImageProcessor):
                                 api_key = os.getenv('GOOGLE_API_KEY')
                                 if api_key:
                                     genai.configure(api_key=api_key)
-                                    model = genai.GenerativeModel('gemini-2.5-pro')
+                                    model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
                                     # 이미지 열기
                                     img = Image.open(uploaded_xray)
@@ -1833,7 +1833,7 @@ class TransferLearningModule(BaseImageProcessor):
             ```python
             import google.generativeai as genai
             genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-            model = genai.GenerativeModel('gemini-2.5-pro')
+            model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
             prompt = f"이 이미지를 {style_name} 스타일로 변환해주세요"
             response = model.generate_content([prompt, content_img])
@@ -1889,7 +1889,7 @@ class TransferLearningModule(BaseImageProcessor):
                                 api_key = os.getenv('GOOGLE_API_KEY')
                                 if api_key:
                                     genai.configure(api_key=api_key)
-                                    model = genai.GenerativeModel('gemini-2.5-pro')
+                                    model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
                                     img = Image.open(content_image)
                                     style_name = style_choice if style_choice != "직접 업로드" else "업로드된 스타일"

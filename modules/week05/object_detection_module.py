@@ -724,85 +724,255 @@ def soft_nms(detections, sigma=0.5):
             self.hand_gesture_project()
 
     def classroom_detector_project(self):
-        """교실 물건 탐지 프로젝트"""
+        """교실 물건 탐지 프로젝트 - 실제 YOLOv8 모델 사용"""
         st.subheader("🏫 교실 물건 탐지기")
 
-        st.markdown("""
-        ### 프로젝트 개요
+        # 이론적 배경 추가
+        with st.expander("📚 이론적 배경: YOLOv8과 실시간 객체 탐지", expanded=False):
+            st.markdown("""
+            ### YOLOv8 아키텍처
 
-        교실에서 흔히 볼 수 있는 물건들을 탐지하는 커스텀 YOLO 모델을 구축합니다.
+            **YOLOv8**은 Ultralytics가 2023년 출시한 최신 YOLO 시리즈입니다.
 
-        **탐지 대상:**
-        - 📚 책 (Book)
-        - 💻 노트북 (Laptop)
-        - 🪑 의자 (Chair)
-        - 🖊️ 칠판 (Whiteboard)
-        - 🎒 가방 (Bag)
+            #### 핵심 개선 사항
+            1. **Anchor-free 설계**
+               - 기존 YOLO의 앵커 박스 제거
+               - 객체 중심점을 직접 예측
+               - 더 빠르고 정확한 탐지
+
+            2. **CSPNet + C2f 모듈**
+               - Cross Stage Partial Networks로 효율적 특징 추출
+               - C2f (Coarse-to-Fine) 모듈로 다중 스케일 특징 융합
+
+            3. **Task-aligned Head**
+               - 분류와 위치 예측을 독립적으로 최적화
+               - TaskAlignedAssigner로 더 정확한 타겟 할당
+
+            #### COCO 데이터셋
+            - **80개 클래스**: 일상적 객체 (사람, 동물, 교통수단, 가구 등)
+            - **330K 이미지**: 대규모 학습 데이터
+            - **교실 관련 클래스**: book, laptop, chair, backpack, person, cell phone, cup 등
+
+            #### 실시간 탐지 프로세스
+            ```
+            입력 이미지 → 전처리 (640×640) → YOLOv8 모델
+                ↓
+            특징 추출 (Backbone) → 특징 융합 (Neck)
+                ↓
+            탐지 헤드 → [Bounding Box + Class + Confidence]
+                ↓
+            NMS 적용 → 최종 탐지 결과
+            ```
+
+            #### YOLOv8 모델 변형
+            - **YOLOv8n (Nano)**: 3.2M 파라미터 - 실시간 처리 (사용 중)
+            - **YOLOv8s (Small)**: 11.2M 파라미터 - 균형잡힌 성능
+            - **YOLOv8m (Medium)**: 25.9M 파라미터 - 고정확도
+            - **YOLOv8l/x**: 대규모 모델 - 최고 정확도
+            """)
+
+        st.info("""
+        💡 **실제 YOLOv8 모델 사용**: Ultralytics의 사전학습된 YOLOv8 모델로 객체를 탐지합니다.
+        - 모델: `yolov8n.pt` (COCO 데이터셋 학습)
+        - 80개 클래스 탐지 가능 (사람, 책, 노트북, 의자, 가방 등)
+        - 첫 실행 시 모델 다운로드 (약 6MB)
         """)
 
-        st.markdown("### API 활용 객체 탐지")
+        # 코드 예시
+        with st.expander("💻 YOLOv8 객체 탐지 코드", expanded=False):
+            st.code("""
+from ultralytics import YOLO
+from PIL import Image
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
-        use_api = st.checkbox("실제 Gemini API 사용", key="classroom_api")
+# YOLOv8 nano 모델 로드 (경량, 3.2M parameters)
+model = YOLO('yolov8n.pt')
 
-        uploaded_file = st.file_uploader(
-            "교실 이미지 업로드",
-            type=['png', 'jpg', 'jpeg'],
-            key="classroom_upload"
-        )
+# 이미지 로드
+image = Image.open('classroom.jpg')
 
-        if uploaded_file:
-            image = Image.open(uploaded_file)
-            st.image(image, caption="업로드된 이미지", width='stretch')
+# 객체 탐지 수행 (conf: 신뢰도 임계값)
+results = model(image, conf=0.25)[0]
 
-            if st.button("객체 탐지 실행", key="classroom_detect"):
-                if use_api:
-                    api_key = os.getenv('GOOGLE_API_KEY')
-                    if api_key and api_key != 'your_api_key_here':
-                        with st.spinner("Gemini로 객체 탐지 중..."):
-                            try:
-                                genai.configure(api_key=api_key)
-                                model = genai.GenerativeModel('gemini-2.5-pro')
+# 탐지된 객체 정보
+boxes = results.boxes.xyxy.cpu().numpy()  # 바운딩 박스 좌표
+confidences = results.boxes.conf.cpu().numpy()  # 신뢰도
+class_ids = results.boxes.cls.cpu().numpy().astype(int)  # 클래스 ID
+class_names = results.names  # 클래스 이름 매핑
 
-                                prompt = """
-이 교실 이미지에서 다음 물건들을 찾아주세요:
-- 책 (Book)
-- 노트북 (Laptop)
-- 의자 (Chair)
-- 칠판/화이트보드 (Whiteboard)
-- 가방 (Bag)
+# 결과 시각화
+fig, ax = plt.subplots(1, figsize=(12, 8))
+ax.imshow(image)
 
-각 물건에 대해:
-1. 물건 이름
-2. 대략적인 위치 (왼쪽/중앙/오른쪽, 위/중간/아래)
-3. 신뢰도 (높음/중간/낮음)
+for box, conf, class_id in zip(boxes, confidences, class_ids):
+    x1, y1, x2, y2 = box
+    class_name = class_names[class_id]
 
-형식으로 답변해주세요.
-                                """
+    # 바운딩 박스 그리기
+    rect = patches.Rectangle(
+        (x1, y1), x2 - x1, y2 - y1,
+        linewidth=2, edgecolor='red', facecolor='none'
+    )
+    ax.add_patch(rect)
 
-                                response = model.generate_content([prompt, image])
+    # 레이블 표시
+    label = f"{class_name}: {conf:.2f}"
+    ax.text(x1, y1 - 5, label, color='white',
+            fontsize=10, bbox=dict(facecolor='red', alpha=0.8))
 
-                                st.success("✅ 탐지 완료!")
-                                st.markdown("### 탐지 결과")
-                                st.write(response.text)
+plt.axis('off')
+plt.show()
 
-                            except Exception as e:
-                                st.error(f"API 오류: {str(e)}")
-                    else:
-                        st.warning("⚠️ API Key가 설정되지 않았습니다.")
-                else:
-                    # 시뮬레이션
-                    with st.spinner("시뮬레이션 탐지 중..."):
-                        st.success("✅ 시뮬레이션 완료!")
-                        st.markdown("### 탐지 결과 (시뮬레이션)")
+# 탐지된 객체 출력
+print(f"총 {len(boxes)}개 객체 탐지")
+for class_id in class_ids:
+    print(f"- {class_names[class_id]}")
+""", language="python")
 
-                        detections = [
-                            {"class": "책", "confidence": 0.92, "location": "중앙-위"},
-                            {"class": "노트북", "confidence": 0.88, "location": "왼쪽-중간"},
-                            {"class": "의자", "confidence": 0.95, "location": "오른쪽-아래"},
-                        ]
+        col1, col2 = st.columns(2)
 
-                        for det in detections:
-                            st.info(f"**{det['class']}** - 신뢰도: {det['confidence']:.2f} - 위치: {det['location']}")
+        with col1:
+            st.markdown("""
+            **프로젝트 목표:**
+            - YOLOv8로 실시간 객체 탐지
+            - COCO 데이터셋 80개 클래스 인식
+            - 바운딩 박스 + 신뢰도 표시
+
+            **탐지 가능한 물건 (COCO 클래스):**
+            - 📚 책 (book)
+            - 💻 노트북 (laptop)
+            - 🪑 의자 (chair)
+            - 🎒 가방 (backpack)
+            - 👤 사람 (person)
+            - 📱 휴대폰 (cell phone)
+            - ☕ 컵 (cup)
+            """)
+
+            uploaded_file = st.file_uploader(
+                "이미지 업로드",
+                type=['png', 'jpg', 'jpeg'],
+                key="classroom_upload"
+            )
+
+        with col2:
+            if uploaded_file:
+                image = Image.open(uploaded_file)
+                st.image(image, caption="업로드된 이미지", use_container_width=True)
+
+                if st.button("🎯 YOLOv8으로 객체 탐지", key="classroom_detect", type="primary"):
+                    with st.spinner("YOLOv8 모델 로딩 및 객체 탐지 중..."):
+                        try:
+                            from ultralytics import YOLO
+                            import matplotlib.pyplot as plt
+                            import matplotlib.patches as patches
+
+                            # YOLOv8 nano 모델 로드 (경량)
+                            model = YOLO('yolov8n.pt')
+
+                            # 객체 탐지 실행
+                            results = model.predict(
+                                source=image,
+                                conf=0.25,  # 신뢰도 임계값
+                                iou=0.45,   # NMS IoU 임계값
+                                verbose=False
+                            )[0]
+
+                            st.success("✅ 탐지 완료!")
+
+                            # 탐지 결과 통계
+                            if results.boxes is not None and len(results.boxes) > 0:
+                                st.markdown(f"### 📊 탐지된 객체: {len(results.boxes)}개")
+
+                                # 결과 시각화
+                                fig, ax = plt.subplots(figsize=(12, 8))
+                                ax.imshow(image)
+
+                                boxes = results.boxes.xyxy.cpu().numpy()
+                                confidences = results.boxes.conf.cpu().numpy()
+                                class_ids = results.boxes.cls.cpu().numpy().astype(int)
+                                class_names = results.names
+
+                                # 색상 팔레트
+                                colors = plt.cm.tab20.colors
+
+                                # 바운딩 박스 그리기
+                                for box, conf, class_id in zip(boxes, confidences, class_ids):
+                                    x1, y1, x2, y2 = box
+                                    class_name = class_names[class_id]
+                                    color = colors[class_id % len(colors)]
+
+                                    # 박스 그리기
+                                    rect = patches.Rectangle(
+                                        (x1, y1), x2 - x1, y2 - y1,
+                                        linewidth=2, edgecolor=color, facecolor='none'
+                                    )
+                                    ax.add_patch(rect)
+
+                                    # 레이블 그리기
+                                    label = f"{class_name}: {conf:.2f}"
+                                    ax.text(
+                                        x1, y1 - 5, label,
+                                        color='white',
+                                        fontsize=10,
+                                        bbox=dict(facecolor=color, alpha=0.8, edgecolor='none', pad=2)
+                                    )
+
+                                ax.axis('off')
+                                st.pyplot(fig)
+                                plt.close()
+
+                                # 탐지 결과 상세 정보
+                                st.markdown("### 🔍 탐지 결과 상세")
+
+                                # 클래스별 그룹화
+                                class_counts = {}
+                                for class_id in class_ids:
+                                    class_name = class_names[class_id]
+                                    class_counts[class_name] = class_counts.get(class_name, 0) + 1
+
+                                col_a, col_b = st.columns(2)
+
+                                with col_a:
+                                    st.markdown("#### 클래스별 개수")
+                                    for class_name, count in sorted(class_counts.items()):
+                                        st.metric(class_name, count)
+
+                                with col_b:
+                                    st.markdown("#### 개별 객체 정보")
+                                    for i, (box, conf, class_id) in enumerate(zip(boxes, confidences, class_ids)):
+                                        x1, y1, x2, y2 = box
+                                        class_name = class_names[class_id]
+                                        st.text(f"{i+1}. {class_name} - 신뢰도: {conf:.2%}")
+                                        st.caption(f"   위치: [{int(x1)}, {int(y1)}, {int(x2)}, {int(y2)}]")
+
+                            else:
+                                st.warning("⚠️ 탐지된 객체가 없습니다. 다른 이미지를 시도해보세요.")
+
+                            # 모델 정보
+                            with st.expander("📊 YOLOv8 모델 정보"):
+                                st.markdown("""
+                                **모델**: YOLOv8n (Nano)
+                                - **파라미터**: 3.2M
+                                - **학습 데이터**: COCO 데이터셋 (80 클래스)
+                                - **입력 크기**: 640×640
+                                - **속도**: ~100 FPS (GPU)
+                                - **mAP50-95**: 37.3%
+
+                                **COCO 80 클래스**:
+                                - 사람, 자전거, 자동차, 오토바이, 비행기, 버스, 기차, 트럭, 보트
+                                - 의자, 소파, 침대, 식탁, 화장실, TV, 노트북, 마우스, 키보드
+                                - 핸드폰, 책, 시계, 꽃병, 가위, 곰 인형, 칫솔 등
+                                """)
+
+                        except Exception as e:
+                            st.error(f"❌ 모델 로딩 실패: {str(e)}")
+                            st.info("""
+                            **해결 방법:**
+                            1. 인터넷 연결 확인 (모델 다운로드 필요)
+                            2. 필요한 패키지 설치: `pip install ultralytics`
+                            3. 충분한 디스크 공간 확인
+                            """)
 
         st.markdown("### 학습 코드")
         st.code("""
@@ -829,6 +999,91 @@ results = model.predict('classroom.jpg')
         """얼굴 감지 프로젝트"""
         st.subheader("😊 얼굴 감지 시스템")
 
+        # 이론적 배경 추가
+        with st.expander("📚 이론적 배경: 얼굴 감지 기술", expanded=False):
+            st.markdown("""
+            ### 얼굴 감지 (Face Detection)
+
+            얼굴 감지는 이미지 내에서 사람의 얼굴 영역을 찾아내는 기술입니다.
+
+            #### 주요 알고리즘 발전 과정
+
+            **1. Viola-Jones (2001)**
+            - **Haar Cascade**: 간단한 특징으로 빠른 탐지
+            - **Integral Image**: 효율적인 특징 계산
+            - **AdaBoost**: 약한 분류기 조합
+            - 장점: 빠른 속도, 실시간 처리 가능
+            - 단점: 정면 얼굴만 잘 감지, 조명에 민감
+
+            **2. HOG + SVM (2005)**
+            - **HOG (Histogram of Oriented Gradients)**: 얼굴 윤곽 특징 추출
+            - **SVM (Support Vector Machine)**: 분류
+            - 장점: 다양한 각도 얼굴 감지
+            - 단점: Haar보다 느림
+
+            **3. MTCNN (2016)**
+            - **Multi-task CNN**: 3단계 CNN 네트워크
+            - **P-Net → R-Net → O-Net**: 점진적 정제
+            - **얼굴 랜드마크 동시 예측**: 눈, 코, 입 좌표
+            - 장점: 높은 정확도, 다양한 포즈/크기 감지
+            - 단점: 3단계 처리로 속도 저하
+
+            **4. RetinaFace (2020)**
+            - **Single-stage Detector**: YOLO 스타일의 빠른 탐지
+            - **Multi-task Learning**:
+              - 얼굴 박스 예측
+              - 5개 랜드마크 (양 눈, 코, 양쪽 입꼬리)
+              - 3D 얼굴 정보
+            - **Feature Pyramid**: 다중 스케일 특징 추출
+            - 장점: 속도와 정확도 균형
+
+            #### 얼굴 랜드마크 (Facial Landmarks)
+
+            얼굴 내 주요 지점을 찾아 좌표로 표현:
+            - **68 Points (dlib)**: 얼굴 윤곽, 눈썹, 눈, 코, 입
+            - **5 Points (RetinaFace)**: 양 눈, 코 끝, 양쪽 입꼬리
+            - **106/478 Points**: 더 정밀한 3D 얼굴 모델링
+
+            **활용 분야:**
+            - 얼굴 정렬 (Face Alignment)
+            - 얼굴 인식 전처리
+            - 표정 분석
+            - AR 필터/마스크 적용
+
+            #### 나이/성별 추정
+
+            얼굴 감지 후 추가 CNN으로 추정:
+            - **나이 추정**: 회귀 문제 (0-100세)
+            - **성별 추정**: 이진 분류 (남/여)
+            - **모델**: AgeNet, GenderNet (Caffe 기반)
+
+            #### 실시간 얼굴 감지 파이프라인
+            ```
+            입력 이미지/영상 → 얼굴 감지 (RetinaFace/MTCNN)
+                ↓
+            Bounding Box + Confidence
+                ↓
+            얼굴 랜드마크 추출 (5 or 68 points)
+                ↓
+            [선택] 나이/성별 추정 CNN
+                ↓
+            시각화 + 결과 출력
+            ```
+
+            #### MediaPipe 대안 (2025)
+
+            **더 정확한 얼굴 탐지/분석을 원한다면:**
+
+            - **YOLO Face**: YOLOv8 기반, 다중 얼굴 고속 탐지
+            - **RetinaFace**: 5개 랜드마크 + 3D 정보, SOTA 성능
+            - **SCRFD**: 경량 실시간 얼굴 탐지 (MMDetection)
+            - **Face Mesh (MediaPipe)**: 468개 상세 랜드마크
+
+            **API vs 로컬 모델**:
+            - Gemini API: 나이/감정/표정 자연어 분석
+            - MediaPipe: 빠른 실시간 탐지, 정확한 좌표
+            """)
+
         st.markdown("""
         ### 프로젝트 개요
 
@@ -840,65 +1095,411 @@ results = model.predict('classroom.jpg')
         - 나이/성별 추정 (선택)
         """)
 
-        use_api = st.checkbox("실제 Gemini API 사용", key="face_api")
+        # 코드 예시 - MediaPipe
+        with st.expander("💻 MediaPipe 얼굴 감지 코드", expanded=False):
+            st.code("""
+import mediapipe as mp
+import cv2
+import numpy as np
+from PIL import Image
 
-        uploaded_file = st.file_uploader(
-            "얼굴 이미지 업로드",
-            type=['png', 'jpg', 'jpeg'],
-            key="face_upload"
-        )
+# MediaPipe Face Detection 초기화
+mp_face_detection = mp.solutions.face_detection
+mp_drawing = mp.solutions.drawing_utils
 
-        if uploaded_file:
-            image = Image.open(uploaded_file)
-            st.image(image, caption="업로드된 이미지", width='stretch')
+# Face Detection 모델 (full-range: 5m)
+face_detection = mp_face_detection.FaceDetection(
+    model_selection=1,
+    min_detection_confidence=0.5
+)
 
-            if st.button("얼굴 감지 실행", key="face_detect"):
-                if use_api:
-                    api_key = os.getenv('GOOGLE_API_KEY')
-                    if api_key and api_key != 'your_api_key_here':
-                        with st.spinner("얼굴 감지 중..."):
-                            try:
-                                genai.configure(api_key=api_key)
-                                model = genai.GenerativeModel('gemini-2.5-pro')
+# 이미지 로드
+image = Image.open('your_image.jpg').convert('RGB')
+image_np = np.array(image)
 
-                                prompt = """
+# 얼굴 탐지
+results = face_detection.process(image_np)
+
+# 결과 시각화
+if results.detections:
+    for detection in results.detections:
+        mp_drawing.draw_detection(image_np, detection)
+
+        # 바운딩 박스 및 신뢰도
+        bbox = detection.location_data.relative_bounding_box
+        confidence = detection.score[0]
+        print(f"얼굴 탐지 신뢰도: {confidence:.2%}")
+
+face_detection.close()
+""", language="python")
+
+        # 코드 예시 - Gemini API
+        with st.expander("💻 Gemini API 얼굴 분석 코드", expanded=False):
+            st.code("""
+import google.generativeai as genai
+from PIL import Image
+import os
+
+# API 키 설정
+genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+
+# Gemini 2.0 Flash 모델 사용
+model = genai.GenerativeModel('gemini-2.0-flash-exp')
+
+# 이미지 로드
+image = Image.open('your_image.jpg')
+
+# 얼굴 분석 프롬프트
+prompt = \"\"\"
 이 이미지에서 모든 얼굴을 감지하고 각 얼굴에 대해:
 1. 위치 (왼쪽/중앙/오른쪽, 위/중간/아래)
 2. 대략적인 나이대
 3. 표정/감정
+4. 얼굴 특징 (안경 착용, 수염 등)
 
-을 분석해주세요.
-                                """
+을 자세히 분석해주세요.
+\"\"\"
 
-                                response = model.generate_content([prompt, image])
+# API 호출
+response = model.generate_content([prompt, image])
+print(response.text)
+""", language="python")
 
-                                st.success("✅ 감지 완료!")
-                                st.write(response.text)
+        # 입력 방식 선택
+        input_mode = st.radio(
+            "입력 방식 선택",
+            ["이미지 업로드", "웹캠 실시간"],
+            key="face_input_mode",
+            horizontal=True
+        )
 
-                            except Exception as e:
-                                st.error(f"API 오류: {str(e)}")
-                    else:
-                        st.warning("⚠️ API Key가 설정되지 않았습니다.")
-                else:
-                    with st.spinner("시뮬레이션 감지 중..."):
-                        st.success("✅ 시뮬레이션 완료!")
-                        st.info("""
-**감지된 얼굴: 2개**
+        if input_mode == "웹캠 실시간":
+            st.info("💡 **웹캠으로 실시간 얼굴 탐지** - MediaPipe Face Detection 사용")
 
-얼굴 1:
-- 위치: 중앙-위
-- 연령대: 20-30대
-- 표정: 미소
+            try:
+                from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+                import cv2
+                import mediapipe as mp
+                import numpy as np
 
-얼굴 2:
-- 위치: 오른쪽-중간
-- 연령대: 30-40대
-- 표정: 중립
-                        """)
+                class FaceDetectionTransformer(VideoTransformerBase):
+                    def __init__(self):
+                        self.mp_face_detection = mp.solutions.face_detection
+                        self.mp_drawing = mp.solutions.drawing_utils
+                        self.face_detection = self.mp_face_detection.FaceDetection(
+                            model_selection=1,
+                            min_detection_confidence=0.5
+                        )
+
+                    def transform(self, frame):
+                        img = frame.to_ndarray(format="bgr24")
+
+                        # RGB로 변환
+                        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+                        # 얼굴 탐지
+                        results = self.face_detection.process(img_rgb)
+
+                        # 결과 그리기
+                        if results.detections:
+                            for detection in results.detections:
+                                self.mp_drawing.draw_detection(img, detection)
+
+                        return img
+
+                webrtc_streamer(
+                    key="face_detection_webcam",
+                    video_transformer_factory=FaceDetectionTransformer,
+                    rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+                    media_stream_constraints={"video": True, "audio": False}
+                )
+
+                st.markdown("""
+                **사용 방법:**
+                1. "START" 버튼 클릭
+                2. 카메라 권한 허용
+                3. 얼굴이 실시간으로 탐지됩니다
+                """)
+
+            except ImportError:
+                st.error("❌ streamlit-webrtc가 설치되지 않았습니다.")
+                st.code("pip install streamlit-webrtc av", language="bash")
+
+        else:
+            # 기존 이미지 업로드 모드
+            col1, col2 = st.columns(2)
+
+            with col1:
+                detection_method = st.radio(
+                    "탐지 방법 선택",
+                    ["MediaPipe Face Detection", "Gemini API"],
+                    key="face_method"
+                )
+
+            with col2:
+                uploaded_file = st.file_uploader(
+                    "얼굴 이미지 업로드",
+                    type=['png', 'jpg', 'jpeg'],
+                    key="face_upload"
+                )
+
+                if uploaded_file:
+                    image = Image.open(uploaded_file).convert('RGB')
+
+                    col_a, col_b = st.columns(2)
+
+                    with col_a:
+                        st.image(image, caption="원본 이미지", use_container_width=True)
+
+                    if st.button("👤 얼굴 감지 실행", key="face_detect", type="primary"):
+
+                        # MediaPipe Face Detection 사용
+                        if detection_method == "MediaPipe Face Detection":
+                            with st.spinner("MediaPipe로 얼굴 탐지 중..."):
+                                try:
+                                    import mediapipe as mp
+                                    import cv2
+                                    import numpy as np
+                                    import matplotlib.pyplot as plt
+                                    import matplotlib.patches as patches
+
+                                    # MediaPipe Face Detection 초기화
+                                    mp_face_detection = mp.solutions.face_detection
+                                    mp_drawing = mp.solutions.drawing_utils
+
+                                    # Face Detection 모델
+                                    face_detection = mp_face_detection.FaceDetection(
+                                        model_selection=1,  # 0: short-range (2m), 1: full-range (5m)
+                                        min_detection_confidence=0.5
+                                    )
+
+                                    # PIL to OpenCV
+                                    image_np = np.array(image)
+                                    image_rgb = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+
+                                    # 얼굴 탐지
+                                    results = face_detection.process(cv2.cvtColor(image_rgb, cv2.COLOR_BGR2RGB))
+
+                                    if results.detections:
+                                        st.success(f"✅ {len(results.detections)}개의 얼굴 탐지 완료!")
+
+                                        # 시각화
+                                        annotated_image = image_np.copy()
+                                        h, w, _ = annotated_image.shape
+
+                                        face_info = []
+
+                                        for idx, detection in enumerate(results.detections):
+                                            # 바운딩 박스 그리기
+                                            mp_drawing.draw_detection(annotated_image, detection)
+
+                                            # 바운딩 박스 좌표
+                                            bbox = detection.location_data.relative_bounding_box
+                                            x = int(bbox.xmin * w)
+                                            y = int(bbox.ymin * h)
+                                            width = int(bbox.width * w)
+                                            height = int(bbox.height * h)
+
+                                            # 신뢰도
+                                            confidence = detection.score[0]
+
+                                            # 6개 키포인트 (오른쪽 눈, 왼쪽 눈, 코 끝, 입, 오른쪽 귀, 왼쪽 귀)
+                                            keypoints = []
+                                            for keypoint in detection.location_data.relative_keypoints:
+                                                keypoints.append({
+                                                    'x': int(keypoint.x * w),
+                                                    'y': int(keypoint.y * h)
+                                                })
+
+                                            face_info.append({
+                                                "bbox": [x, y, width, height],
+                                                "confidence": confidence,
+                                                "keypoints": keypoints
+                                            })
+
+                                        with col_b:
+                                            st.image(annotated_image, caption="얼굴 탐지 결과", use_container_width=True)
+
+                                        # 결과 출력
+                                        st.markdown("#### 탐지 결과")
+                                        for i, info in enumerate(face_info):
+                                            x, y, w, h = info['bbox']
+                                            st.markdown(f"""
+                                            **얼굴 #{i+1}**
+                                            - 신뢰도: {info['confidence']:.2%}
+                                            - 위치: [{x}, {y}, {x+w}, {y+h}]
+                                            - 크기: {w}×{h} px
+                                            """)
+
+                                        # 키포인트 정보
+                                        with st.expander("📊 얼굴 키포인트 (6개)"):
+                                            keypoint_names = [
+                                                "오른쪽 눈", "왼쪽 눈", "코 끝",
+                                                "입 중앙", "오른쪽 귀", "왼쪽 귀"
+                                            ]
+
+                                            for idx, info in enumerate(face_info):
+                                                st.markdown(f"**얼굴 #{idx+1} 키포인트:**")
+                                                for i, kp in enumerate(info['keypoints']):
+                                                    if i < len(keypoint_names):
+                                                        st.caption(f"{keypoint_names[i]}: x={kp['x']}, y={kp['y']}")
+
+                                        # 모델 정보
+                                        with st.expander("📊 MediaPipe Face Detection 정보"):
+                                            st.markdown("""
+                                            **모델**: BlazeFace
+                                            - **아키텍처**: SSD 변형, 경량화 모델
+                                            - **탐지 범위**: Full-range (최대 5m)
+                                            - **출력**:
+                                              - 얼굴 바운딩 박스
+                                              - 신뢰도 점수
+                                              - 6개 얼굴 키포인트
+                                            - **속도**: 실시간 (~200 FPS on GPU)
+
+                                            **6개 키포인트:**
+                                            1. 오른쪽 눈 중심
+                                            2. 왼쪽 눈 중심
+                                            3. 코 끝
+                                            4. 입 중앙
+                                            5. 오른쪽 귀 (귀와 얼굴 경계)
+                                            6. 왼쪽 귀 (귀와 얼굴 경계)
+                                            """)
+
+                                    else:
+                                        st.warning("⚠️ 이미지에서 얼굴을 탐지하지 못했습니다. 다른 이미지를 시도해보세요.")
+
+                                    face_detection.close()
+
+                                except ImportError:
+                                    st.error("❌ MediaPipe가 설치되지 않았습니다.")
+                                    st.code("pip install mediapipe opencv-python", language="bash")
+                                except Exception as e:
+                                    st.error(f"❌ 오류 발생: {str(e)}")
+
+                        # Gemini API 사용
+                        else:
+                            api_key = os.getenv('GOOGLE_API_KEY')
+                            if api_key and api_key != 'your_api_key_here':
+                                with st.spinner("Gemini API로 얼굴 분석 중..."):
+                                    try:
+                                        genai.configure(api_key=api_key)
+                                        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+
+                                        prompt = """
+이 이미지에서 모든 얼굴을 감지하고 각 얼굴에 대해:
+1. 위치 (왼쪽/중앙/오른쪽, 위/중간/아래)
+2. 대략적인 나이대
+3. 표정/감정
+4. 얼굴 특징 (안경 착용, 수염 등)
+
+을 자세히 분석해주세요.
+                                        """
+
+                                        response = model.generate_content([prompt, image])
+
+                                        with col_b:
+                                            st.success("✅ Gemini API 분석 완료!")
+                                            st.markdown(response.text)
+
+                                    except Exception as e:
+                                        st.error(f"❌ API 오류: {str(e)}")
+                            else:
+                                st.warning("⚠️ GOOGLE_API_KEY가 설정되지 않았습니다.")
 
     def license_plate_project(self):
         """차량 번호판 인식"""
         st.subheader("🚗 차량 번호판 인식")
+
+        # 이론적 배경 추가
+        with st.expander("📚 이론적 배경: 번호판 인식 시스템 (ALPR)", expanded=False):
+            st.markdown("""
+            ### ALPR (Automatic License Plate Recognition)
+
+            **ALPR**은 차량 번호판을 자동으로 읽는 컴퓨터 비전 시스템입니다.
+
+            #### 3단계 파이프라인
+
+            **Stage 1: 차량 탐지 (Vehicle Detection)**
+            - **모델**: YOLOv8, Faster R-CNN
+            - **목적**: 이미지에서 차량 위치 찾기
+            - **COCO 클래스**: car, truck, bus, motorcycle
+            - **출력**: 차량 바운딩 박스
+
+            **Stage 2: 번호판 탐지 (License Plate Detection)**
+            - **모델**: 특화된 YOLO 또는 CNN
+            - **목적**: 차량 내 번호판 영역 정확히 찾기
+            - **데이터**: 각국 번호판 형태에 맞춘 학습
+            - **전처리**:
+              - 원근 변환 (Perspective Transform)
+              - 기울기 보정 (Deskewing)
+              - 크기 정규화
+            - **출력**: 번호판 바운딩 박스
+
+            **Stage 3: OCR (Optical Character Recognition)**
+            - **전통적 방법**:
+              - 이진화 (Binarization)
+              - 문자 분할 (Character Segmentation)
+              - 템플릿 매칭
+            - **딥러닝 방법**:
+              - **CRNN (CNN + RNN + CTC)**: 문자 시퀀스 인식
+              - **EasyOCR/PaddleOCR**: 사전학습 OCR 모델
+              - **TrOCR (Transformer OCR)**: Transformer 기반 최신 기술
+            - **출력**: 번호판 텍스트
+
+            #### 번호판 특화 OCR 도전과제
+
+            **1. 다양한 번호판 포맷**
+            - 한국: 12가 3456, 서울12가3456
+            - 미국: ABC-1234
+            - 유럽: XX-123-YY
+            → 국가별 정규표현식 필요
+
+            **2. 이미지 품질 문제**
+            - 모션 블러 (Motion Blur)
+            - 조명 변화 (야간, 역광)
+            - 번호판 오염/손상
+            - 카메라 각도 (원근 왜곡)
+            → 전처리와 데이터 증강 필수
+
+            **3. 유사 문자 구분**
+            - O (알파벳) vs 0 (숫자)
+            - I (알파벳) vs 1 (숫자)
+            - B vs 8, D vs 0
+            → 문맥 기반 후처리 필요
+
+            #### CRNN 아키텍처 (OCR의 핵심)
+
+            ```
+            입력 번호판 이미지 (H×W×3)
+                ↓
+            CNN Backbone (특징 추출)
+                ↓
+            Feature Map (1×W'×C)
+                ↓
+            Bidirectional LSTM (시퀀스 모델링)
+                ↓
+            CTC Loss (정렬 없는 학습)
+                ↓
+            출력 텍스트: "12가3456"
+            ```
+
+            **CTC (Connectionist Temporal Classification)**:
+            - 문자 위치를 미리 알 필요 없음
+            - 가변 길이 출력 가능
+            - Blank 토큰으로 중복 제거
+
+            #### 실전 ALPR 시스템 구현
+
+            **오픈소스 라이브러리:**
+            - **EasyOCR**: 80개 언어 지원, PyTorch 기반
+            - **PaddleOCR**: 중국 바이두, PP-OCR 모델
+            - **Tesseract**: 전통적 OCR, 번호판엔 부적합
+
+            **성능 최적화:**
+            - **추적 (Tracking)**: 여러 프레임 결과 결합
+            - **앙상블**: 다중 OCR 모델 결과 투표
+            - **정규표현식 필터**: 형식에 맞는 결과만 선택
+            """)
 
         st.markdown("""
         ### 프로젝트 개요
@@ -930,7 +1531,7 @@ results = model.predict('classroom.jpg')
                         with st.spinner("번호판 인식 중..."):
                             try:
                                 genai.configure(api_key=api_key)
-                                model = genai.GenerativeModel('gemini-2.5-pro')
+                                model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
                                 prompt = """
 이 이미지에서:
@@ -969,6 +1570,173 @@ results = model.predict('classroom.jpg')
         """손동작 인식"""
         st.subheader("✋ 손동작 인식")
 
+        # 이론적 배경 추가
+        with st.expander("📚 이론적 배경: 손 탐지 및 제스처 인식", expanded=False):
+            st.markdown("""
+            ### Hand Detection & Gesture Recognition
+
+            손 탐지와 제스처 인식은 Human-Computer Interaction(HCI)의 핵심 기술입니다.
+
+            #### 1. 손 탐지 (Hand Detection)
+
+            **객체 탐지 기반 접근**
+            - **YOLO/SSD**: 일반 객체 탐지 모델로 손 탐지
+            - **데이터**: EgoHands, COCO (person 키포인트)
+            - **문제점**: 손은 작고 배경과 비슷해 탐지 어려움
+
+            **특화 모델**
+            - **MediaPipe Hands (Google)**:
+              - Palm Detection + Hand Landmark 2단계
+              - 경량 모델로 모바일에서 실시간 동작
+              - 21개 손 랜드마크 제공
+            - **OpenPose Hand**:
+              - 전신 포즈 추정의 확장
+              - 21개 손 키포인트
+
+            #### 2. 손 랜드마크 (Hand Landmarks)
+
+            **MediaPipe 21개 랜드마크 구조:**
+            ```
+            0: 손목 (Wrist)
+            1-4: 엄지 (Thumb)
+            5-8: 검지 (Index)
+            9-12: 중지 (Middle)
+            13-16: 약지 (Ring)
+            17-20: 새끼 (Pinky)
+            ```
+
+            **랜드마크로 추출 가능한 정보:**
+            - **손가락 펼침 여부**: 관절 각도 계산
+            - **손 방향**: 손목-중지 벡터
+            - **손 크기**: 손목-중지 거리
+            - **손 모양**: 손가락 간 각도 관계
+
+            #### 3. 제스처 인식 방법
+
+            **A. Rule-based (규칙 기반)**
+            - 손가락 개수 세기
+              - 펼쳐진 손가락 끝이 MCP(손등 관절)보다 위에 있으면 펼침
+              - 예: 5개 → "보", 0개 → "주먹", 2개 → "가위"
+            - 손 형태 패턴 매칭
+              - 엄지+검지만 펼침 → "총"
+              - 엄지+새끼만 펼침 → "샤카(Shaka)"
+            - 장점: 빠르고 정확
+            - 단점: 미리 정의된 제스처만 인식
+
+            **B. Machine Learning (딥러닝)**
+            - **입력**: 21개 랜드마크 좌표 (x, y, z) × 21 = 63차원
+            - **모델**:
+              - MLP (Multi-Layer Perceptron): 간단한 분류
+              - LSTM/GRU: 시간 순서 제스처 (동적 제스처)
+              - Transformer: 복잡한 시퀀스 제스처
+            - **출력**: 제스처 클래스 (Rock, Paper, Scissors, OK, Peace 등)
+            - 장점: 복잡하고 다양한 제스처 학습 가능
+            - 단점: 학습 데이터 필요
+
+            **C. Sequence-based (동적 제스처)**
+            - 정적 제스처: 한 프레임 (예: 엄지척)
+            - 동적 제스처: 여러 프레임 (예: 손 흔들기, 스와이프)
+            - **DTW (Dynamic Time Warping)**: 시계열 패턴 매칭
+            - **3D CNN / LSTM**: 비디오 시퀀스 학습
+
+            #### 4. MediaPipe Hands 파이프라인
+
+            ```
+            입력 이미지 (RGB)
+                ↓
+            Palm Detection Model (손바닥 탐지)
+                ↓
+            Hand Bounding Box (손 영역)
+                ↓
+            Hand Landmark Model (21개 키포인트 회귀)
+                ↓
+            3D Hand Landmarks (x, y, z) × 21
+                ↓
+            [응용] 제스처 분류 / 손가락 카운팅
+            ```
+
+            **Palm Detection Model**:
+            - **입력**: 전체 이미지
+            - **출력**: 손바닥 중심 + 회전각 + 크기
+            - **특징**: 손바닥은 손가락보다 덜 움직여 안정적
+
+            **Hand Landmark Model**:
+            - **입력**: Crop된 손 영역 (256×256)
+            - **출력**: 21개 3D 좌표 + 손 존재 여부(handedness)
+            - **특징**: 왼손/오른손 구분 가능
+
+            #### 5. 실전 응용 예시
+
+            **손가락 개수 세기 알고리즘:**
+            ```python
+            def count_fingers(landmarks):
+                fingers = []
+
+                # 엄지: x 좌표 비교 (좌우 반전 주의)
+                if landmarks[4].x < landmarks[3].x:  # 오른손 기준
+                    fingers.append(1)
+
+                # 나머지 손가락: y 좌표 비교 (끝 < 관절)
+                for id in [8, 12, 16, 20]:  # 검지, 중지, 약지, 새끼
+                    if landmarks[id].y < landmarks[id-2].y:
+                        fingers.append(1)
+
+                return sum(fingers)
+            ```
+
+            **제스처 분류 데이터셋:**
+            - **Jester**: 148K 비디오, 27개 제스처
+            - **ASL (American Sign Language)**: 수화 알파벳
+            - **Custom**: 직접 수집한 특정 도메인 제스처
+
+            #### 6. MediaPipe 대안 라이브러리 (2025)
+
+            **더 높은 성능을 원한다면?**
+
+            | 라이브러리 | 속도 (FPS) | 정확도 | 다중인물 | 난이도 | 추천 용도 |
+            |-----------|-----------|--------|---------|--------|----------|
+            | **MediaPipe** | 200+ | 중상 | ❌ (1명) | 쉬움 | 실시간 단일 인물, 프로토타입 |
+            | **MMPose** | 430+ | ⭐최고 | ✅ | 중간 | 연구, 고정밀도 필요 |
+            | **YOLOv8 Pose** | 100+ | 상 | ✅ | 쉬움 | 다중 인물, 객체+포즈 동시 |
+            | **OpenPose** | 15 | 중 | ✅ | 어려움 | 연구용 (레거시) |
+
+            **MMPose (OpenMMLab)** - 2025년 SOTA:
+            - RTMPose 모델: 430+ FPS (GTX 1660 Ti)
+            - COCO 75.8% AP (MediaPipe보다 우수)
+            - 손, 얼굴, 전신, 3D 포즈 모두 지원
+            - PyTorch 기반, 크로스 플랫폼
+
+            **YOLOv8/v7 Pose**:
+            - 다중 인물 동시 추적 (MediaPipe는 1명만)
+            - 객체 탐지 + 포즈 추정 통합
+            - Ultralytics 패키지로 간편 사용
+
+            **선택 가이드**:
+            - 빠른 프로토타입, 학습용 → **MediaPipe** ✅
+            - 최고 정확도, 연구 → **MMPose**
+            - 다중 인물, 실무 → **YOLOv8 Pose**
+
+            #### 7. API vs 로컬 모델 비교
+
+            **Gemini API 장점**:
+            - 복잡한 추론: "이 제스처의 의미는?"
+            - 자연어 출력: 인간 친화적 설명
+            - 맥락 이해: 나이, 감정 분석
+
+            **MediaPipe/로컬 모델 장점**:
+            - ✅ **무료**: API 비용 $0
+            - ✅ **빠름**: 10-20배 빠른 속도
+            - ✅ **프라이버시**: 데이터가 외부로 나가지 않음
+            - ✅ **오프라인**: 인터넷 없이 동작
+            - ✅ **정확한 좌표**: 21개 랜드마크 (x, y, z)
+            - ✅ **실시간**: 비디오, 웹캠, AR/VR 가능
+
+            **실무 하이브리드 전략**:
+            1. MediaPipe로 빠른 랜드마크 추출
+            2. 복잡한 경우만 Gemini API 호출
+            → 비용 절감 + 성능 최적화
+            """)
+
         st.markdown("""
         ### 프로젝트 개요
 
@@ -981,58 +1749,394 @@ results = model.predict('classroom.jpg')
         - 스마트홈 제어
         """)
 
-        use_api = st.checkbox("실제 Gemini API 사용", key="hand_api")
+        # 코드 예시 - MediaPipe
+        with st.expander("💻 MediaPipe 손동작 인식 코드", expanded=False):
+            st.code("""
+import mediapipe as mp
+import cv2
+import numpy as np
+from PIL import Image
 
-        uploaded_file = st.file_uploader(
-            "손동작 이미지 업로드",
-            type=['png', 'jpg', 'jpeg'],
-            key="hand_upload"
+# MediaPipe Hands 초기화
+mp_hands = mp.solutions.hands
+mp_drawing = mp.solutions.drawing_utils
+mp_drawing_styles = mp.solutions.drawing_styles
+
+# Hands 모델 (최대 2개 손 탐지)
+hands = mp_hands.Hands(
+    static_image_mode=True,
+    max_num_hands=2,
+    min_detection_confidence=0.5
+)
+
+# 이미지 로드
+image = Image.open('your_image.jpg').convert('RGB')
+image_np = np.array(image)
+
+# 손 탐지
+results = hands.process(image_np)
+
+# 결과 시각화
+if results.multi_hand_landmarks:
+    for hand_landmarks in results.multi_hand_landmarks:
+        # 손 랜드마크 그리기 (21개 keypoints)
+        mp_drawing.draw_landmarks(
+            image_np,
+            hand_landmarks,
+            mp_hands.HAND_CONNECTIONS,
+            mp_drawing_styles.get_default_hand_landmarks_style(),
+            mp_drawing_styles.get_default_hand_connections_style()
         )
 
-        if uploaded_file:
-            image = Image.open(uploaded_file)
-            st.image(image, caption="업로드된 이미지", width='stretch')
+        # 손가락 개수 세기
+        landmarks = hand_landmarks.landmark
+        finger_count = 0
 
-            if st.button("손동작 인식 실행", key="hand_detect"):
-                if use_api:
-                    api_key = os.getenv('GOOGLE_API_KEY')
-                    if api_key and api_key != 'your_api_key_here':
-                        with st.spinner("손동작 인식 중..."):
-                            try:
-                                genai.configure(api_key=api_key)
-                                model = genai.GenerativeModel('gemini-2.5-pro')
+        # 엄지 (x 좌표 비교)
+        if landmarks[4].x < landmarks[3].x:
+            finger_count += 1
 
-                                prompt = """
+        # 나머지 손가락 (y 좌표 비교)
+        for tip_id in [8, 12, 16, 20]:
+            if landmarks[tip_id].y < landmarks[tip_id - 2].y:
+                finger_count += 1
+
+        print(f"펼친 손가락 개수: {finger_count}")
+
+hands.close()
+""", language="python")
+
+        # 코드 예시 - Gemini API
+        with st.expander("💻 Gemini API 손동작 분석 코드", expanded=False):
+            st.code("""
+import google.generativeai as genai
+from PIL import Image
+import os
+
+# API 키 설정
+genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+
+# Gemini 2.0 Flash 모델 사용
+model = genai.GenerativeModel('gemini-2.0-flash-exp')
+
+# 이미지 로드
+image = Image.open('your_image.jpg')
+
+# 손동작 분석 프롬프트
+prompt = \"\"\"
 이 이미지에서 손을 분석하고:
 1. 손 개수
 2. 펼쳐진 손가락 개수
 3. 손동작/제스처 (예: 가위, 바위, 보, 엄지척, V사인 등)
 4. 손의 위치
+5. 왼손/오른손 구분
 
-를 알려주세요.
-                                """
+를 자세히 알려주세요.
+\"\"\"
 
-                                response = model.generate_content([prompt, image])
+# API 호출
+response = model.generate_content([prompt, image])
+print(response.text)
+""", language="python")
 
-                                st.success("✅ 인식 완료!")
-                                st.write(response.text)
+        # 입력 방식 선택
+        input_mode = st.radio(
+            "입력 방식 선택",
+            ["이미지 업로드", "웹캠 실시간"],
+            key="hand_input_mode",
+            horizontal=True
+        )
 
-                            except Exception as e:
-                                st.error(f"API 오류: {str(e)}")
-                    else:
-                        st.warning("⚠️ API Key가 설정되지 않았습니다.")
-                else:
-                    with st.spinner("시뮬레이션 인식 중..."):
-                        st.success("✅ 시뮬레이션 완료!")
-                        st.info("""
-**인식 결과:**
+        if input_mode == "웹캠 실시간":
+            st.info("💡 **웹캠으로 실시간 손동작 탐지** - MediaPipe Hands 사용")
 
-손 개수: 1개
-펼쳐진 손가락: 2개
-제스처: V사인 (평화)
-손 위치: 중앙
-신뢰도: 0.94
-                        """)
+            try:
+                from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+                import cv2
+                import mediapipe as mp
+                import numpy as np
+
+                class HandDetectionTransformer(VideoTransformerBase):
+                    def __init__(self):
+                        self.mp_hands = mp.solutions.hands
+                        self.mp_drawing = mp.solutions.drawing_utils
+                        self.mp_drawing_styles = mp.solutions.drawing_styles
+                        self.hands = self.mp_hands.Hands(
+                            static_image_mode=False,
+                            max_num_hands=2,
+                            min_detection_confidence=0.5,
+                            min_tracking_confidence=0.5
+                        )
+
+                    def transform(self, frame):
+                        img = frame.to_ndarray(format="bgr24")
+
+                        # RGB로 변환
+                        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+                        # 손 탐지
+                        results = self.hands.process(img_rgb)
+
+                        # 결과 그리기
+                        if results.multi_hand_landmarks:
+                            for hand_landmarks in results.multi_hand_landmarks:
+                                self.mp_drawing.draw_landmarks(
+                                    img,
+                                    hand_landmarks,
+                                    self.mp_hands.HAND_CONNECTIONS,
+                                    self.mp_drawing_styles.get_default_hand_landmarks_style(),
+                                    self.mp_drawing_styles.get_default_hand_connections_style()
+                                )
+
+                                # 손가락 개수 표시
+                                # 간단한 카운팅 (엄지는 x좌표, 나머지는 y좌표 비교)
+                                finger_count = 0
+                                landmarks = hand_landmarks.landmark
+
+                                # 엄지
+                                if landmarks[4].x < landmarks[3].x:
+                                    finger_count += 1
+
+                                # 나머지 손가락
+                                for tip_id in [8, 12, 16, 20]:
+                                    if landmarks[tip_id].y < landmarks[tip_id - 2].y:
+                                        finger_count += 1
+
+                                # 화면에 표시
+                                cv2.putText(img, f"Fingers: {finger_count}", (10, 30),
+                                           cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+                        return img
+
+                webrtc_streamer(
+                    key="hand_detection_webcam",
+                    video_transformer_factory=HandDetectionTransformer,
+                    rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+                    media_stream_constraints={"video": True, "audio": False}
+                )
+
+                st.markdown("""
+                **사용 방법:**
+                1. "START" 버튼 클릭
+                2. 카메라 권한 허용
+                3. 손을 카메라에 비추면 실시간으로 탐지되고 손가락 개수가 표시됩니다
+
+                **제스처 테스트:**
+                - ✊ 주먹: 0개
+                - ☝️ 검지: 1개
+                - ✌️ 가위/V사인: 2개
+                - 🖐️ 보: 5개
+                """)
+
+            except ImportError:
+                st.error("❌ streamlit-webrtc가 설치되지 않았습니다.")
+                st.code("pip install streamlit-webrtc av", language="bash")
+
+        else:
+            # 기존 이미지 업로드 모드
+            col1, col2 = st.columns(2)
+
+            with col1:
+                detection_method = st.radio(
+                    "탐지 방법 선택",
+                    ["MediaPipe Hand Landmarker", "Gemini API"],
+                    key="hand_method"
+                )
+
+            with col2:
+                uploaded_file = st.file_uploader(
+                    "손동작 이미지 업로드",
+                    type=['png', 'jpg', 'jpeg'],
+                    key="hand_upload"
+                )
+
+                if uploaded_file:
+                    image = Image.open(uploaded_file).convert('RGB')
+
+                    col_a, col_b = st.columns(2)
+
+                    with col_a:
+                        st.image(image, caption="원본 이미지", use_container_width=True)
+
+                    if st.button("🤚 손동작 인식 실행", key="hand_detect", type="primary"):
+
+                        # MediaPipe 사용
+                        if detection_method == "MediaPipe Hand Landmarker":
+                            st.warning("""
+                            ⚠️ **MediaPipe 설치 안내**
+
+                            MediaPipe는 Python 3.13을 아직 지원하지 않습니다.
+
+                            **해결 방법:**
+                            1. Python 3.11 또는 3.12 환경 사용
+                            2. 또는 Gemini API 방식 선택
+
+                            **설치 명령 (Python 3.11/3.12):**
+                            ```bash
+                            pip install mediapipe opencv-python
+                            ```
+                            """)
+
+                            with st.spinner("MediaPipe로 손 랜드마크 탐지 중..."):
+                                try:
+                                    import mediapipe as mp
+                                    import cv2
+                                    import numpy as np
+                                    import matplotlib.pyplot as plt
+                                    import matplotlib.patches as patches
+
+                                    # MediaPipe Hands 초기화
+                                    mp_hands = mp.solutions.hands
+                                    mp_drawing = mp.solutions.drawing_utils
+                                    mp_drawing_styles = mp.solutions.drawing_styles
+
+                                    # Hands 모델 (static_image_mode=True for images)
+                                    hands = mp_hands.Hands(
+                                        static_image_mode=True,
+                                        max_num_hands=2,
+                                        min_detection_confidence=0.5,
+                                        min_tracking_confidence=0.5
+                                    )
+
+                                    # PIL to OpenCV
+                                    image_np = np.array(image)
+                                    image_rgb = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+
+                                    # 손 탐지
+                                    results = hands.process(cv2.cvtColor(image_rgb, cv2.COLOR_BGR2RGB))
+
+                                    if results.multi_hand_landmarks:
+                                        st.success(f"✅ {len(results.multi_hand_landmarks)}개의 손 탐지 완료!")
+
+                                        # 시각화
+                                        annotated_image = image_np.copy()
+
+                                        hand_info = []
+
+                                        for idx, (hand_landmarks, handedness) in enumerate(zip(
+                                            results.multi_hand_landmarks,
+                                            results.multi_handedness
+                                        )):
+                                            # 손 랜드마크 그리기
+                                            mp_drawing.draw_landmarks(
+                                                annotated_image,
+                                                hand_landmarks,
+                                                mp_hands.HAND_CONNECTIONS,
+                                                mp_drawing_styles.get_default_hand_landmarks_style(),
+                                                mp_drawing_styles.get_default_hand_connections_style()
+                                            )
+
+                                            # 손가락 개수 세기
+                                            def count_fingers(landmarks):
+                                                fingers = []
+
+                                                # 엄지: x 좌표 비교
+                                                if handedness.classification[0].label == "Right":
+                                                    if landmarks[4].x < landmarks[3].x:
+                                                        fingers.append(1)
+                                                else:  # Left
+                                                    if landmarks[4].x > landmarks[3].x:
+                                                        fingers.append(1)
+
+                                                # 나머지 손가락: y 좌표 비교
+                                                tip_ids = [8, 12, 16, 20]  # 검지, 중지, 약지, 새끼
+                                                for tip_id in tip_ids:
+                                                    if landmarks[tip_id].y < landmarks[tip_id - 2].y:
+                                                        fingers.append(1)
+
+                                                return sum(fingers)
+
+                                            finger_count = count_fingers(hand_landmarks.landmark)
+                                            hand_label = handedness.classification[0].label
+                                            hand_score = handedness.classification[0].score
+
+                                            # 제스처 인식 (간단한 규칙 기반)
+                                            gesture = "알 수 없음"
+                                            if finger_count == 0:
+                                                gesture = "주먹 (Rock)"
+                                            elif finger_count == 2:
+                                                gesture = "가위 (Scissors) 또는 V사인"
+                                            elif finger_count == 5:
+                                                gesture = "보 (Paper)"
+                                            elif finger_count == 1:
+                                                gesture = "포인팅 또는 엄지척"
+
+                                            hand_info.append({
+                                                "hand": hand_label,
+                                                "confidence": hand_score,
+                                                "fingers": finger_count,
+                                                "gesture": gesture
+                                            })
+
+                                        with col_b:
+                                            st.image(annotated_image, caption="손 랜드마크 탐지 결과", use_container_width=True)
+
+                                        # 결과 출력
+                                        st.markdown("#### 탐지 결과")
+                                        for i, info in enumerate(hand_info):
+                                            st.markdown(f"""
+                                            **손 #{i+1}**
+                                            - 손: {info['hand']} (신뢰도: {info['confidence']:.2%})
+                                            - 펼쳐진 손가락: {info['fingers']}개
+                                            - 추정 제스처: {info['gesture']}
+                                            """)
+
+                                        # 랜드마크 좌표 정보
+                                        with st.expander("📊 21개 손 랜드마크 좌표"):
+                                            for idx, hand_landmarks in enumerate(results.multi_hand_landmarks):
+                                                st.markdown(f"**손 #{idx+1} 랜드마크:**")
+                                                landmark_names = [
+                                                    "WRIST", "THUMB_CMC", "THUMB_MCP", "THUMB_IP", "THUMB_TIP",
+                                                    "INDEX_FINGER_MCP", "INDEX_FINGER_PIP", "INDEX_FINGER_DIP", "INDEX_FINGER_TIP",
+                                                    "MIDDLE_FINGER_MCP", "MIDDLE_FINGER_PIP", "MIDDLE_FINGER_DIP", "MIDDLE_FINGER_TIP",
+                                                    "RING_FINGER_MCP", "RING_FINGER_PIP", "RING_FINGER_DIP", "RING_FINGER_TIP",
+                                                    "PINKY_MCP", "PINKY_PIP", "PINKY_DIP", "PINKY_TIP"
+                                                ]
+
+                                                for i, landmark in enumerate(hand_landmarks.landmark):
+                                                    st.caption(f"{i}: {landmark_names[i]} - x:{landmark.x:.3f}, y:{landmark.y:.3f}, z:{landmark.z:.3f}")
+
+                                    else:
+                                        st.warning("⚠️ 이미지에서 손을 탐지하지 못했습니다. 다른 이미지를 시도해보세요.")
+
+                                    hands.close()
+
+                                except ImportError:
+                                    st.error("❌ MediaPipe가 설치되지 않았습니다.")
+                                    st.code("pip install mediapipe opencv-python", language="bash")
+                                except Exception as e:
+                                    st.error(f"❌ 오류 발생: {str(e)}")
+
+                        # Gemini API 사용
+                        else:
+                            api_key = os.getenv('GOOGLE_API_KEY')
+                            if api_key and api_key != 'your_api_key_here':
+                                with st.spinner("Gemini API로 손동작 분석 중..."):
+                                    try:
+                                        genai.configure(api_key=api_key)
+                                        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+
+                                        prompt = """
+이 이미지에서 손을 분석하고:
+1. 손 개수
+2. 펼쳐진 손가락 개수
+3. 손동작/제스처 (예: 가위, 바위, 보, 엄지척, V사인 등)
+4. 손의 위치
+5. 왼손/오른손 구분
+
+를 자세히 알려주세요.
+                                        """
+
+                                        response = model.generate_content([prompt, image])
+
+                                        with col_b:
+                                            st.success("✅ Gemini API 분석 완료!")
+                                            st.markdown(response.text)
+
+                                    except Exception as e:
+                                        st.error(f"❌ API 오류: {str(e)}")
+                            else:
+                                st.warning("⚠️ GOOGLE_API_KEY가 설정되지 않았습니다.")
 
         st.markdown("### MediaPipe Hand Tracking")
         st.code("""
