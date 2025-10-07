@@ -40,3 +40,10 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+
+# Model Cache
+.cache/
+*.pt
+*.pth
+*.onnx
+*.ckpt
