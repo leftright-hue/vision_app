@@ -13,12 +13,119 @@ import os
 import google.generativeai as genai
 
 class ObjectDetectionModule:
+    def _check_environment(self):
+        """환경 체크 및 자동 설정"""
+        import sys
+        import subprocess
+
+        issues = []
+
+        # Python 버전 체크
+        python_version = sys.version_info
+        if python_version.major == 3 and python_version.minor >= 12:
+            # Python 3.12+ 감지
+            try:
+                import mediapipe
+                import streamlit_webrtc
+            except ImportError as e:
+                issues.append(f"❌ 필수 패키지 누락: {str(e)}")
+
+                st.warning("""
+                **환경 설정이 필요합니다.**
+
+                Python 3.12 이상에서는 일부 패키지의 호환성 문제가 있을 수 있습니다.
+                """)
+
+                if st.button("🔧 자동으로 환경 설정하기", key="auto_setup_env"):
+                    with st.spinner("환경을 설정하는 중..."):
+                        try:
+                            # requirements.txt 업데이트
+                            st.info("requirements.txt를 업데이트하는 중...")
+
+                            # 필수 패키지 설치
+                            packages_to_install = [
+                                "mediapipe>=0.10.0,<0.11",
+                                "streamlit-webrtc>=0.63.0",
+                                "numpy>=1.26.0,<2.0"
+                            ]
+
+                            for package in packages_to_install:
+                                st.info(f"설치 중: {package}")
+                                result = subprocess.run(
+                                    [sys.executable, "-m", "pip", "install", package],
+                                    capture_output=True,
+                                    text=True
+                                )
+                                if result.returncode == 0:
+                                    st.success(f"✅ {package} 설치 완료")
+                                else:
+                                    st.error(f"❌ {package} 설치 실패: {result.stderr}")
+
+                            st.success("✅ 환경 설정 완료! 페이지를 새로고침하세요.")
+                            st.balloons()
+
+                        except Exception as e:
+                            st.error(f"환경 설정 중 오류 발생: {e}")
+                            st.code("""
+# 수동 설치 방법:
+python -m pip install mediapipe>=0.10.0,<0.11
+python -m pip install streamlit-webrtc>=0.63.0
+python -m pip install numpy>=1.26.0,<2.0
+                            """, language="bash")
+
+                return False
+
+        elif python_version.major == 3 and python_version.minor == 13:
+            st.error("""
+            ⚠️ **Python 버전 호환성 문제**
+
+            현재 Python 3.13을 사용 중입니다.
+            mediapipe는 Python 3.12 이하에서만 지원됩니다.
+
+            **해결 방법:**
+            1. Python 3.12 설치
+            2. 새 가상환경 생성:
+            ```bash
+            py -3.12 -m venv venv
+            venv\\Scripts\\activate
+            pip install -r requirements.txt
+            ```
+            """)
+            return False
+
+        return True
+
+    def _ensure_yolo_model(self, model_path="yolov8n.pt"):
+        import os
+        import requests
+        import streamlit as st
+
+        url = f"https://huggingface.co/ultralytics/yolov8/resolve/main/{model_path}"
+        if not os.path.exists(model_path):
+            with st.spinner(f"'{model_path}' 모델을 다운로드합니다... (약 6MB)"):
+                try:
+                    response = requests.get(url, stream=True)
+                    response.raise_for_status()
+                    with open(model_path, "wb") as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            f.write(chunk)
+                    st.success(f"'{model_path}' 다운로드 완료!")
+                except Exception as e:
+                    st.error(f"모델 다운로드 실패: {e}")
+                    return False
+        return True
+
     def __init__(self):
         self.name = "Week 5: Object Detection & YOLO"
 
     def render(self):
         st.title("🎯 Week 5: 객체 탐지와 YOLO")
         st.markdown("**객체 탐지의 이론부터 YOLO 실전 구현까지**")
+
+        # 환경 체크
+        if not self._check_environment():
+            st.warning("⚠️ 환경 설정 후 계속 진행하세요.")
+            return
 
         tabs = st.tabs([
             "📖 이론",
@@ -959,7 +1066,6 @@ def soft_nms(detections, sigma=0.5):
         """교실 물건 탐지 프로젝트 - 실제 YOLOv8 모델 사용"""
         st.subheader("🏫 교실 물건 탐지기")
 
-        # 이론적 배경 추가
         with st.expander("📚 이론적 배경: YOLOv8과 실시간 객체 탐지", expanded=False):
             st.markdown("""
             ### YOLOv8 아키텍처
@@ -1007,204 +1113,177 @@ def soft_nms(detections, sigma=0.5):
         💡 **실제 YOLOv8 모델 사용**: Ultralytics의 사전학습된 YOLOv8 모델로 객체를 탐지합니다.
         - 모델: `yolov8n.pt` (COCO 데이터셋 학습)
         - 80개 클래스 탐지 가능 (사람, 책, 노트북, 의자, 가방 등)
-        - 첫 실행 시 모델 다운로드 (약 6MB)
         """)
 
-        # 코드 예시
-        with st.expander("💻 YOLOv8 객체 탐지 코드", expanded=False):
-            st.code("""
-from ultralytics import YOLO
-from PIL import Image
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
+        # Step 1: 모델 준비
+        st.markdown("### 1️⃣ 모델 준비")
+        model_path = "yolov8n.pt"
+        if not os.path.exists(model_path):
+            st.warning(f"'{model_path}' 모델 파일이 없습니다. 아래 버튼을 눌러 다운로드하세요.")
+            if st.button(f"⬇️ '{model_path}' 다운로드"):
+                if self._ensure_yolo_model(model_path):
+                    st.rerun()
+        else:
+            st.success(f"✅ '{model_path}' 모델이 준비되었습니다.")
+            st.caption(f"위치: {os.path.abspath(model_path)}")
 
-# YOLOv8 nano 모델 로드 (경량, 3.2M parameters)
-model = YOLO('yolov8n.pt')
+        st.markdown("---")
+        st.markdown("### 2️⃣ 객체 탐지")
 
-# 이미지 로드
-image = Image.open('classroom.jpg')
+        # 모델이 있을 때만 이미지 업로드 활성화
+        if os.path.exists(model_path):
+            col1, col2 = st.columns(2)
 
-# 객체 탐지 수행 (conf: 신뢰도 임계값)
-results = model(image, conf=0.25)[0]
+            with col1:
+                st.markdown("""
+                **프로젝트 목표:**
+                - YOLOv8로 실시간 객체 탐지
+                - COCO 데이터셋 80개 클래스 인식
+                - 바운딩 박스 + 신뢰도 표시
 
-# 탐지된 객체 정보
-boxes = results.boxes.xyxy.cpu().numpy()  # 바운딩 박스 좌표
-confidences = results.boxes.conf.cpu().numpy()  # 신뢰도
-class_ids = results.boxes.cls.cpu().numpy().astype(int)  # 클래스 ID
-class_names = results.names  # 클래스 이름 매핑
+                **탐지 가능한 물건 (COCO 클래스):**
+                - 📚 책 (book)
+                - 💻 노트북 (laptop)
+                - 🪑 의자 (chair)
+                - 🎒 가방 (backpack)
+                - 👤 사람 (person)
+                - 📱 휴대폰 (cell phone)
+                - ☕ 컵 (cup)
+                """)
 
-# 결과 시각화
-fig, ax = plt.subplots(1, figsize=(12, 8))
-ax.imshow(image)
+                uploaded_file = st.file_uploader(
+                    "이미지 업로드",
+                    type=['png', 'jpg', 'jpeg'],
+                    key="classroom_upload"
+                )
 
-for box, conf, class_id in zip(boxes, confidences, class_ids):
-    x1, y1, x2, y2 = box
-    class_name = class_names[class_id]
+            with col2:
+                if uploaded_file:
+                    image = Image.open(uploaded_file)
+                    st.image(image, caption="업로드된 이미지", use_container_width=True)
 
-    # 바운딩 박스 그리기
-    rect = patches.Rectangle(
-        (x1, y1), x2 - x1, y2 - y1,
-        linewidth=2, edgecolor='red', facecolor='none'
-    )
-    ax.add_patch(rect)
+                    if st.button("🎯 YOLOv8으로 객체 탐지", key="classroom_detect", type="primary"):
+                        if not os.path.exists(model_path):
+                            st.error("모델 파일이 없습니다. 먼저 모델을 다운로드하세요.")
+                            return
 
-    # 레이블 표시
-    label = f"{class_name}: {conf:.2f}"
-    ax.text(x1, y1 - 5, label, color='white',
-            fontsize=10, bbox=dict(facecolor='red', alpha=0.8))
+                        with st.spinner("YOLOv8 모델 로딩 및 객체 탐지 중..."):
+                            try:
+                                from ultralytics import YOLO
+                                import matplotlib.pyplot as plt
+                                import matplotlib.patches as patches
+                                import matplotlib.cm as cm
 
-plt.axis('off')
-plt.show()
+                                model = YOLO(model_path)
 
-# 탐지된 객체 출력
-print(f"총 {len(boxes)}개 객체 탐지")
-for class_id in class_ids:
-    print(f"- {class_names[class_id]}")
-""", language="python")
+                                # PIL Image를 numpy array로 변환
+                                image_array = np.array(image)
 
-        col1, col2 = st.columns(2)
+                                # 객체 탐지 실행
+                                results = model.predict(
+                                    source=image_array,
+                                    conf=0.25,  # 신뢰도 임계값
+                                    iou=0.45,   # NMS IoU 임계값
+                                    verbose=False
+                                )[0]
 
-        with col1:
-            st.markdown("""
-            **프로젝트 목표:**
-            - YOLOv8로 실시간 객체 탐지
-            - COCO 데이터셋 80개 클래스 인식
-            - 바운딩 박스 + 신뢰도 표시
+                                st.success("✅ 탐지 완료!")
 
-            **탐지 가능한 물건 (COCO 클래스):**
-            - 📚 책 (book)
-            - 💻 노트북 (laptop)
-            - 🪑 의자 (chair)
-            - 🎒 가방 (backpack)
-            - 👤 사람 (person)
-            - 📱 휴대폰 (cell phone)
-            - ☕ 컵 (cup)
-            """)
+                                # 탐지 결과 통계
+                                if results.boxes is not None and len(results.boxes) > 0:
+                                    st.markdown(f"### 📊 탐지된 객체: {len(results.boxes)}개")
 
-            uploaded_file = st.file_uploader(
-                "이미지 업로드",
-                type=['png', 'jpg', 'jpeg'],
-                key="classroom_upload"
-            )
+                                    # 결과 시각화
+                                    fig, ax = plt.subplots(figsize=(12, 8))
+                                    ax.imshow(image_array)
 
-        with col2:
-            if uploaded_file:
-                image = Image.open(uploaded_file)
-                st.image(image, caption="업로드된 이미지", use_container_width=True)
+                                    boxes = results.boxes.xyxy.cpu().numpy()
+                                    confidences = results.boxes.conf.cpu().numpy()
+                                    class_ids = results.boxes.cls.cpu().numpy().astype(int)
+                                    class_names = results.names
 
-                if st.button("🎯 YOLOv8으로 객체 탐지", key="classroom_detect", type="primary"):
-                    with st.spinner("YOLOv8 모델 로딩 및 객체 탐지 중..."):
-                        try:
-                            from ultralytics import YOLO
-                            import matplotlib.pyplot as plt
-                            import matplotlib.patches as patches
+                                    # 색상 팔레트
+                                    cmap = cm.get_cmap('tab20')
 
-                            # YOLOv8 nano 모델 로드 (경량)
-                            model = YOLO('yolov8n.pt')
-
-                            # 객체 탐지 실행
-                            results = model.predict(
-                                source=image,
-                                conf=0.25,  # 신뢰도 임계값
-                                iou=0.45,   # NMS IoU 임계값
-                                verbose=False
-                            )[0]
-
-                            st.success("✅ 탐지 완료!")
-
-                            # 탐지 결과 통계
-                            if results.boxes is not None and len(results.boxes) > 0:
-                                st.markdown(f"### 📊 탐지된 객체: {len(results.boxes)}개")
-
-                                # 결과 시각화
-                                fig, ax = plt.subplots(figsize=(12, 8))
-                                ax.imshow(image)
-
-                                boxes = results.boxes.xyxy.cpu().numpy()
-                                confidences = results.boxes.conf.cpu().numpy()
-                                class_ids = results.boxes.cls.cpu().numpy().astype(int)
-                                class_names = results.names
-
-                                # 색상 팔레트
-                                colors = plt.cm.tab20.colors
-
-                                # 바운딩 박스 그리기
-                                for box, conf, class_id in zip(boxes, confidences, class_ids):
-                                    x1, y1, x2, y2 = box
-                                    class_name = class_names[class_id]
-                                    color = colors[class_id % len(colors)]
-
-                                    # 박스 그리기
-                                    rect = patches.Rectangle(
-                                        (x1, y1), x2 - x1, y2 - y1,
-                                        linewidth=2, edgecolor=color, facecolor='none'
-                                    )
-                                    ax.add_patch(rect)
-
-                                    # 레이블 그리기
-                                    label = f"{class_name}: {conf:.2f}"
-                                    ax.text(
-                                        x1, y1 - 5, label,
-                                        color='white',
-                                        fontsize=10,
-                                        bbox=dict(facecolor=color, alpha=0.8, edgecolor='none', pad=2)
-                                    )
-
-                                ax.axis('off')
-                                st.pyplot(fig)
-                                plt.close()
-
-                                # 탐지 결과 상세 정보
-                                st.markdown("### 🔍 탐지 결과 상세")
-
-                                # 클래스별 그룹화
-                                class_counts = {}
-                                for class_id in class_ids:
-                                    class_name = class_names[class_id]
-                                    class_counts[class_name] = class_counts.get(class_name, 0) + 1
-
-                                col_a, col_b = st.columns(2)
-
-                                with col_a:
-                                    st.markdown("#### 클래스별 개수")
-                                    for class_name, count in sorted(class_counts.items()):
-                                        st.metric(class_name, count)
-
-                                with col_b:
-                                    st.markdown("#### 개별 객체 정보")
-                                    for i, (box, conf, class_id) in enumerate(zip(boxes, confidences, class_ids)):
+                                    # 바운딩 박스 그리기
+                                    for box, conf, class_id in zip(boxes, confidences, class_ids):
                                         x1, y1, x2, y2 = box
                                         class_name = class_names[class_id]
-                                        st.text(f"{i+1}. {class_name} - 신뢰도: {conf:.2%}")
-                                        st.caption(f"   위치: [{int(x1)}, {int(y1)}, {int(x2)}, {int(y2)}]")
+                                        color = cmap(class_id % 20 / 20)
 
-                            else:
-                                st.warning("⚠️ 탐지된 객체가 없습니다. 다른 이미지를 시도해보세요.")
+                                        # 박스 그리기
+                                        rect = patches.Rectangle(
+                                            (x1, y1), x2 - x1, y2 - y1,
+                                            linewidth=2, edgecolor=color, facecolor='none'
+                                        )
+                                        ax.add_patch(rect)
 
-                            # 모델 정보
-                            with st.expander("📊 YOLOv8 모델 정보"):
-                                st.markdown("""
-                                **모델**: YOLOv8n (Nano)
-                                - **파라미터**: 3.2M
-                                - **학습 데이터**: COCO 데이터셋 (80 클래스)
-                                - **입력 크기**: 640×640
-                                - **속도**: ~100 FPS (GPU)
-                                - **mAP50-95**: 37.3%
+                                        # 레이블 그리기
+                                        label = f"{class_name}: {conf:.2f}"
+                                        ax.text(
+                                            x1, y1 - 5, label,
+                                            color='white',
+                                            fontsize=10,
+                                            bbox=dict(facecolor=color, alpha=0.8, edgecolor='none', pad=2)
+                                        )
 
-                                **COCO 80 클래스**:
-                                - 사람, 자전거, 자동차, 오토바이, 비행기, 버스, 기차, 트럭, 보트
-                                - 의자, 소파, 침대, 식탁, 화장실, TV, 노트북, 마우스, 키보드
-                                - 핸드폰, 책, 시계, 꽃병, 가위, 곰 인형, 칫솔 등
+                                    ax.axis('off')
+                                    st.pyplot(fig)
+                                    plt.close()
+
+                                    # 탐지 결과 상세 정보
+                                    st.markdown("### 🔍 탐지 결과 상세")
+
+                                    # 클래스별 그룹화
+                                    class_counts = {}
+                                    for class_id in class_ids:
+                                        class_name = class_names[class_id]
+                                        class_counts[class_name] = class_counts.get(class_name, 0) + 1
+
+                                    col_a, col_b = st.columns(2)
+
+                                    with col_a:
+                                        st.markdown("#### 클래스별 개수")
+                                        for class_name, count in sorted(class_counts.items()):
+                                            st.metric(class_name, count)
+
+                                    with col_b:
+                                        st.markdown("#### 개별 객체 정보")
+                                        for i, (box, conf, class_id) in enumerate(zip(boxes, confidences, class_ids)):
+                                            x1, y1, x2, y2 = box
+                                            class_name = class_names[class_id]
+                                            st.text(f"{i+1}. {class_name} - 신뢰도: {conf:.2%}")
+                                            st.caption(f"   위치: [{int(x1)}, {int(y1)}, {int(x2)}, {int(y2)}]")
+
+                                else:
+                                    st.warning("⚠️ 탐지된 객체가 없습니다. 다른 이미지를 시도해보세요.")
+
+                                # 모델 정보
+                                with st.expander("📊 YOLOv8 모델 정보"):
+                                    st.markdown("""
+                                    **모델**: YOLOv8n (Nano)
+                                    - **파라미터**: 3.2M
+                                    - **학습 데이터**: COCO 데이터셋 (80 클래스)
+                                    - **입력 크기**: 640×640
+                                    - **속도**: ~100 FPS (GPU)
+                                    - **mAP50-95**: 37.3%
+
+                                    **COCO 80 클래스**:
+                                    - 사람, 자전거, 자동차, 오토바이, 비행기, 버스, 기차, 트럭, 보트
+                                    - 의자, 소파, 침대, 식탁, 화장실, TV, 노트북, 마우스, 키보드
+                                    - 핸드폰, 책, 시계, 꽃병, 가위, 곰 인형, 칫솔 등
+                                    """)
+
+                            except Exception as e:
+                                st.error(f"❌ 모델 로딩 실패: {str(e)}")
+                                st.info("""
+                                **해결 방법:**
+                                1. 인터넷 연결 확인 (모델 다운로드 필요)
+                                2. 필요한 패키지 설치: `pip install ultralytics`
+                                3. 충분한 디스크 공간 확인
                                 """)
-
-                        except Exception as e:
-                            st.error(f"❌ 모델 로딩 실패: {str(e)}")
-                            st.info("""
-                            **해결 방법:**
-                            1. 인터넷 연결 확인 (모델 다운로드 필요)
-                            2. 필요한 패키지 설치: `pip install ultralytics`
-                            3. 충분한 디스크 공간 확인
-                            """)
+        else:
+            st.info("⬆️ 먼저 위의 '1️⃣ 모델 준비' 섹션에서 모델을 다운로드하세요.")
 
         st.markdown("### 학습 코드")
         st.code("""
@@ -1409,12 +1488,13 @@ print(response.text)
             st.info("💡 **웹캠으로 실시간 얼굴 탐지** - MediaPipe Face Detection 사용")
 
             try:
-                from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+                from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
                 import cv2
                 import mediapipe as mp
                 import numpy as np
+                import av
 
-                class FaceDetectionTransformer(VideoTransformerBase):
+                class FaceDetectionProcessor(VideoProcessorBase):
                     def __init__(self):
                         self.mp_face_detection = mp.solutions.face_detection
                         self.mp_drawing = mp.solutions.drawing_utils
@@ -1423,7 +1503,7 @@ print(response.text)
                             min_detection_confidence=0.5
                         )
 
-                    def transform(self, frame):
+                    def recv(self, frame):
                         img = frame.to_ndarray(format="bgr24")
 
                         # RGB로 변환
@@ -1437,11 +1517,11 @@ print(response.text)
                             for detection in results.detections:
                                 self.mp_drawing.draw_detection(img, detection)
 
-                        return img
+                        return av.VideoFrame.from_ndarray(img, format="bgr24")
 
                 webrtc_streamer(
                     key="face_detection_webcam",
-                    video_transformer_factory=FaceDetectionTransformer,
+                    video_processor_factory=FaceDetectionProcessor,
                     rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
                     media_stream_constraints={"video": True, "audio": False}
                 )
@@ -2083,12 +2163,13 @@ print(response.text)
             st.info("💡 **웹캠으로 실시간 손동작 탐지** - MediaPipe Hands 사용")
 
             try:
-                from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+                from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
                 import cv2
                 import mediapipe as mp
                 import numpy as np
+                import av
 
-                class HandDetectionTransformer(VideoTransformerBase):
+                class HandDetectionProcessor(VideoProcessorBase):
                     def __init__(self):
                         self.mp_hands = mp.solutions.hands
                         self.mp_drawing = mp.solutions.drawing_utils
@@ -2100,7 +2181,7 @@ print(response.text)
                             min_tracking_confidence=0.5
                         )
 
-                    def transform(self, frame):
+                    def recv(self, frame):
                         img = frame.to_ndarray(format="bgr24")
 
                         # RGB로 변환
@@ -2138,11 +2219,11 @@ print(response.text)
                                 cv2.putText(img, f"Fingers: {finger_count}", (10, 30),
                                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-                        return img
+                        return av.VideoFrame.from_ndarray(img, format="bgr24")
 
                 webrtc_streamer(
                     key="hand_detection_webcam",
-                    video_transformer_factory=HandDetectionTransformer,
+                    video_processor_factory=HandDetectionProcessor,
                     rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
                     media_stream_constraints={"video": True, "audio": False}
                 )
@@ -2299,6 +2380,43 @@ print(response.text)
                                                 "fingers": finger_count,
                                                 "gesture": gesture
                                             })
+
+                                            # 이미지에 손가락 개수와 제스처 표시
+                                            h, w, _ = annotated_image.shape
+                                            wrist = hand_landmarks.landmark[0]
+                                            text_x = int(wrist.x * w)
+                                            text_y = int(wrist.y * h) - 20
+
+                                            # 텍스트 배경
+                                            cv2.rectangle(
+                                                annotated_image,
+                                                (text_x - 10, text_y - 30),
+                                                (text_x + 200, text_y + 10),
+                                                (0, 0, 0),
+                                                -1
+                                            )
+
+                                            # 손가락 개수 표시
+                                            cv2.putText(
+                                                annotated_image,
+                                                f"Fingers: {finger_count}",
+                                                (text_x, text_y - 10),
+                                                cv2.FONT_HERSHEY_SIMPLEX,
+                                                0.6,
+                                                (0, 255, 0),
+                                                2
+                                            )
+
+                                            # 제스처 표시
+                                            cv2.putText(
+                                                annotated_image,
+                                                gesture,
+                                                (text_x, text_y + 10),
+                                                cv2.FONT_HERSHEY_SIMPLEX,
+                                                0.5,
+                                                (255, 255, 0),
+                                                1
+                                            )
 
                                         with col_b:
                                             st.image(annotated_image, caption="손 랜드마크 탐지 결과", use_container_width=True)

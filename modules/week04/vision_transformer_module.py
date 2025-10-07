@@ -14,7 +14,8 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from core.base_processor import BaseImageProcessor
-from core.vit_helpers import load_vit_model, get_attention_overlays
+from core.vit_helpers import get_attention_overlays, get_attention_overlays_per_head, get_attention_rollout
+from transformers import ViTForImageClassification, AutoImageProcessor
 
 
 class VisionTransformerModule(BaseImageProcessor):
@@ -730,13 +731,12 @@ Patch Embedding + Position Embedding
         st.header("🔍 Vision Transformer 실전")
 
         st.info("""
-        💡 **이 탭의 목적**: 실제 ViT 모델을 다운로드하고 이미지를 분류하며,
-        Attention 메커니즘을 시각화합니다.
+        💡 **이 탭의 목적**: 실제 ViT 모델을 다운로드하고, Attention을 시각화하며, 이미지를 분류합니다.
 
         **3단계 프로세스:**
         1. 🔽 모델 다운로드/로드
-        2. 🖼️ 이미지 업로드 및 분류
-        3. 👁️ Attention Map 시각화
+        2. 👁️ Attention Map 시각화
+        3. 🖼️ 이미지 분류
         """)
 
         st.markdown("---")
@@ -751,13 +751,11 @@ Patch Embedding + Position Embedding
                 "사전학습 ViT 모델 선택",
                 [
                     "google/vit-base-patch16-224",
-                    "google/vit-base-patch16-224-in21k",
                     "google/vit-large-patch16-224",
-                    "google/vit-base-patch32-224-in21k"
                 ],
                 index=0,
                 key="vit_model_choice",
-                help="HuggingFace에서 사전학습된 ViT 모델을 다운로드합니다"
+                help="HuggingFace에서 사전학습된 ViT 분류 모델을 다운로드합니다"
             )
 
             # 모델 정보 표시
@@ -768,24 +766,12 @@ Patch Embedding + Position Embedding
                     "dataset": "ImageNet-1K",
                     "acc": "81.8%"
                 },
-                "google/vit-base-patch16-224-in21k": {
-                    "name": "ViT-Base/16",
-                    "params": "86M",
-                    "dataset": "ImageNet-21K",
-                    "acc": "Pre-trained"
-                },
                 "google/vit-large-patch16-224": {
                     "name": "ViT-Large/16",
                     "params": "307M",
                     "dataset": "ImageNet-1K",
                     "acc": "82.6%"
                 },
-                "google/vit-base-patch32-224-in21k": {
-                    "name": "ViT-Base/32",
-                    "params": "88M",
-                    "dataset": "ImageNet-21K",
-                    "acc": "Pre-trained"
-                }
             }
 
             info = model_info[model_choice]
@@ -798,10 +784,14 @@ Patch Embedding + Position Embedding
             """)
 
             if st.button("⬇️ 모델 다운로드/로드", key="load_vit", type="primary"):
-                with st.spinner("모델 다운로드 및 로드 중 (처음엔 시간이 걸릴 수 있습니다)..."):
+                with st.spinner("분류 모델 다운로드 및 로드 중 (처음엔 시간이 걸릴 수 있습니다)..."):
                     try:
                         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-                        model, processor = load_vit_model(model_choice)
+                        processor = AutoImageProcessor.from_pretrained(model_choice)
+                        model = ViTForImageClassification.from_pretrained(model_choice, output_attentions=True)
+                        model.to(device)
+                        model.eval()
+
                         st.success(f"✅ 모델 로드 완료!")
                         st.caption(f"Device: {device} | 캐시 저장됨")
                         # 캐시 저장
@@ -836,159 +826,152 @@ Position Embedding
 CLS 토큰 → 분류
             """, language="text")
 
-        # Step 2: 이미지 업로드 및 분류
-        st.markdown("---")
-        st.markdown("### 2️⃣ 이미지 분류")
-
         uploaded_vit = st.file_uploader(
-            "이미지 업로드 (ViT가 무엇인지 맞춰볼까요?)",
+            "이미지 업로드",
             type=['png', 'jpg', 'jpeg'],
             key="vit_upload",
             help="224×224로 자동 리사이즈됩니다"
         )
 
         if uploaded_vit:
-            img_col1, img_col2 = st.columns([1, 1])
+            st.image(uploaded_vit, caption="업로드된 이미지", use_column_width=True)
 
-            with img_col1:
-                st.image(uploaded_vit, caption="업로드된 이미지", use_column_width=True)
+            # Step 2: Attention 시각화
+            if 'vit_model' in st.session_state:
+                st.markdown("---")
+                st.markdown("### 2️⃣ Attention Map 시각화")
 
-            with img_col2:
-                st.markdown("**🎯 분류 결과**")
+                st.info("""
+                💡 **Attention Map**: ViT가 이미지의 어느 부분에 집중하는지 시각화합니다.
+                - 빨간색/밝은 영역 = 높은 Attention (중요한 부분)
+                - 파란색/어두운 영역 = 낮은 Attention (덜 중요한 부분)
+                """)
 
-                if 'vit_model' not in st.session_state:
-                    st.warning("먼저 모델을 다운로드하세요 (위 1단계)")
-                else:
-                    if st.button("🔮 이미지 분류 시작", key="classify_btn", type="primary"):
-                        with st.spinner("ViT 모델로 분석 중..."):
-                            try:
-                                # 간단한 시뮬레이션 (실제로는 ViT classification head가 필요)
-                                st.info("""
-                                ℹ️ **참고**: 이 ViT 모델은 feature extraction용입니다.
-                                실제 분류를 위해서는 classification head가 필요합니다.
+                viz_col1, viz_col2 = st.columns([1, 2])
 
-                                현재는 Attention 시각화에 집중합니다!
-                                """)
+                with viz_col1:
+                    st.markdown("**🎛️ 시각화 설정**")
 
-                                st.markdown("**💡 대신 Attention Map으로 모델이 어디를 보는지 확인해보세요!**")
-
-                            except Exception as e:
-                                st.error(f"분류 실패: {e}")
-
-        # Step 3: Attention 시각화
-        if uploaded_vit and 'vit_model' in st.session_state:
-            st.markdown("---")
-            st.markdown("### 3️⃣ Attention Map 시각화")
-
-            st.info("""
-            💡 **Attention Map**: ViT가 이미지의 어느 부분에 집중하는지 시각화합니다.
-            - 빨간색/밝은 영역 = 높은 Attention (중요한 부분)
-            - 파란색/어두운 영역 = 낮은 Attention (덜 중요한 부분)
-            """)
-
-            viz_col1, viz_col2 = st.columns([1, 2])
-
-            with viz_col1:
-                st.markdown("**🎛️ 시각화 설정**")
-
-                viz_mode = st.radio(
-                    "시각화 모드",
-                    ["Layer-wise (레이어별)", "Head-wise (헤드별)", "Attention Rollout"],
-                    key="viz_mode",
-                    help="""
-                    - Layer-wise: 각 레이어의 평균 Attention
-                    - Head-wise: 특정 레이어의 각 헤드별 Attention
-                    - Attention Rollout: 모든 레이어를 누적한 최종 Attention
-                    """
-                )
-
-                alpha = st.slider("오버레이 투명도", 0.0, 1.0, 0.6, 0.1, key="alpha_slider")
-
-                if viz_mode == "Layer-wise (레이어별)":
-                    max_layers = st.slider("표시할 레이어 수", 1, 12, 6, key="max_layers")
-                    st.caption(f"Layer 1부터 {max_layers}까지 표시")
-
-                elif viz_mode == "Head-wise (헤드별)":
-                    layer_idx = st.slider("레이어 선택", 0, 11, 5, key="layer_idx")
-                    st.caption(f"Layer {layer_idx+1}의 12개 헤드 표시")
-
-                elif viz_mode == "Attention Rollout":
-                    discard_ratio = st.slider(
-                        "Discard Ratio",
-                        0.0, 0.95, 0.9, 0.05,
-                        key="discard_ratio",
-                        help="낮은 Attention 값을 제거하는 비율 (높을수록 중요한 영역만 표시)"
+                    viz_mode = st.radio(
+                        "시각화 모드",
+                        ["Layer-wise (레이어별)", "Head-wise (헤드별)", "Attention Rollout"],
+                        key="viz_mode",
+                        help="""
+                        - Layer-wise: 각 레이어의 평균 Attention
+                        - Head-wise: 특정 레이어의 각 헤드별 Attention
+                        - Attention Rollout: 모든 레이어를 누적한 최종 Attention
+                        """
                     )
 
-                if st.button("👁️ Attention Map 생성", key="vis_attn", type="primary"):
-                    with st.spinner("Attention 계산 중... (시간이 걸릴 수 있습니다)"):
+                    alpha = st.slider("오버레이 투명도", 0.0, 1.0, 0.6, 0.1, key="alpha_slider")
+
+                    if viz_mode == "Layer-wise (레이어별)":
+                        max_layers = st.slider("표시할 레이어 수", 1, 12, 6, key="max_layers")
+                        st.caption(f"Layer 1부터 {max_layers}까지 표시")
+
+                    elif viz_mode == "Head-wise (헤드별)":
+                        layer_idx = st.slider("레이어 선택", 0, 11, 5, key="layer_idx")
+                        st.caption(f"Layer {layer_idx+1}의 12개 헤드 표시")
+
+                    elif viz_mode == "Attention Rollout":
+                        discard_ratio = st.slider(
+                            "Discard Ratio",
+                            0.0, 0.95, 0.9, 0.05,
+                            key="discard_ratio",
+                            help="낮은 Attention 값을 제거하는 비율 (높을수록 중요한 영역만 표시)"
+                        )
+
+                    if st.button("👁️ Attention Map 생성", key="vis_attn", type="primary"):
+                        with st.spinner("Attention 계산 중... (시간이 걸릴 수 있습니다)"):
+                            try:
+                                model = st.session_state['vit_model']
+                                processor = st.session_state['vit_processor']
+                                pil_img = Image.open(uploaded_vit).convert('RGB')
+
+                                if viz_mode == "Layer-wise (레이어별)":
+                                    overlays = get_attention_overlays(pil_img, model, processor, alpha=alpha, max_layers=max_layers)
+                                    st.session_state['attention_result'] = overlays
+                                elif viz_mode == "Head-wise (헤드별)":
+                                    head_overlays = get_attention_overlays_per_head(pil_img, model, processor, layer_idx=layer_idx, alpha=alpha)
+                                    st.session_state['attention_result'] = head_overlays
+                                elif viz_mode == "Attention Rollout":
+                                    rollout_overlay = get_attention_rollout(pil_img, model, processor, alpha=alpha, discard_ratio=discard_ratio)
+                                    st.session_state['attention_result'] = rollout_overlay
+                                
+                                st.session_state['attention_viz_mode'] = viz_mode
+                                st.success("✅ Attention 시각화 완료!")
+
+                            except Exception as e:
+                                st.error(f"Attention 계산 실패: {e}")
+                                import traceback
+                                st.text(traceback.format_exc())
+
+                with viz_col2:
+                    st.markdown("**🖼️ Attention 시각화 결과**")
+                    if 'attention_result' in st.session_state:
+                        viz_mode = st.session_state['attention_viz_mode']
+                        result = st.session_state['attention_result']
+
+                        if viz_mode == "Layer-wise (레이어별)":
+                            cols_per_row = 3
+                            for i in range(0, len(result), cols_per_row):
+                                cols = st.columns(cols_per_row)
+                                for j, col in enumerate(cols):
+                                    idx = i + j
+                                    if idx < len(result):
+                                        with col:
+                                            st.image(result[idx], caption=f"Layer {idx+1}", use_column_width=True)
+                        elif viz_mode == "Head-wise (헤드별)":
+                            cols_per_row = 4
+                            for i in range(0, len(result), cols_per_row):
+                                cols = st.columns(cols_per_row)
+                                for j, col in enumerate(cols):
+                                    idx = i + j
+                                    if idx < len(result):
+                                        with col:
+                                            st.image(result[idx], caption=f"Head {idx+1}", use_column_width=True)
+                        elif viz_mode == "Attention Rollout":
+                            st.image(result, caption="Attention Rollout (누적)", use_column_width=True)
+                            st.success("✅ Attention Rollout: 모든 레이어의 attention을 누적하여 최종적으로 모델이 집중하는 영역을 보여줍니다!")
+                    else:
+                        st.caption("왼쪽에서 설정 후 'Attention Map 생성' 버튼을 클릭하세요")
+                        st.image("https://via.placeholder.com/400x300?text=Attention+Map+will+appear+here",
+                                caption="Attention Map이 여기에 표시됩니다")
+
+            # Step 3: 이미지 분류
+            if 'vit_model' in st.session_state:
+                st.markdown("---")
+                st.markdown("### 3️⃣ 이미지 분류")
+
+                if st.button("🔮 이미지 분류 시작", key="classify_btn", type="primary"):
+                    with st.spinner("ViT 모델로 분석 중..."):
                         try:
-                            from core.vit_helpers import get_attention_overlays_per_head, get_attention_rollout
                             model = st.session_state['vit_model']
                             processor = st.session_state['vit_processor']
                             pil_img = Image.open(uploaded_vit).convert('RGB')
 
-                            # Attention 계산 시작
-                            st.session_state['computing_attention'] = True
+                            inputs = processor(images=pil_img, return_tensors="pt")
+                            
+                            with torch.no_grad():
+                                outputs = model(**inputs)
+                                logits = outputs.logits
 
+                            # Top-5 예측
+                            probs = torch.nn.functional.softmax(logits, dim=-1)
+                            top5_probs, top5_indices = torch.topk(probs, 5)
+
+                            st.success("✅ 분류 완료!")
+                            st.markdown("#### 🎯 Top-5 예측 결과")
+
+                            for i, (prob, idx) in enumerate(zip(top5_probs[0], top5_indices[0])):
+                                label = model.config.id2label[idx.item()]
+                                confidence = prob.item() * 100
+                                st.markdown(f"**{i+1}. {label}** (`{confidence:.2f}%`)")
+                                st.progress(confidence / 100)
+                            
                         except Exception as e:
-                            st.error(f"Attention 계산 실패: {e}")
-                            import traceback
-                            st.text(traceback.format_exc())
-                            st.session_state['computing_attention'] = False
+                            st.error(f"분류 실패: {e}")
 
-            with viz_col2:
-                st.markdown("**🖼️ Attention 시각화 결과**")
-
-                if st.session_state.get('computing_attention', False):
-                    try:
-                        from core.vit_helpers import get_attention_overlays_per_head, get_attention_rollout
-                        model = st.session_state['vit_model']
-                        processor = st.session_state['vit_processor']
-                        pil_img = Image.open(uploaded_vit).convert('RGB')
-
-                        if viz_mode == "Layer-wise (레이어별)":
-                            overlays = get_attention_overlays(pil_img, model, processor, alpha=alpha, max_layers=max_layers)
-                            # Show overlays in grid
-                            cols_per_row = 3
-                            for i in range(0, len(overlays), cols_per_row):
-                                cols = st.columns(cols_per_row)
-                                for j, col in enumerate(cols):
-                                    idx = i + j
-                                    if idx < len(overlays):
-                                        with col:
-                                            st.image(overlays[idx], caption=f"Layer {idx+1}", use_column_width=True)
-
-                        elif viz_mode == "Head-wise (헤드별)":
-                            head_overlays = get_attention_overlays_per_head(pil_img, model, processor, layer_idx=layer_idx, alpha=alpha)
-                            # Show head overlays in grid
-                            cols_per_row = 4
-                            for i in range(0, len(head_overlays), cols_per_row):
-                                cols = st.columns(cols_per_row)
-                                for j, col in enumerate(cols):
-                                    idx = i + j
-                                    if idx < len(head_overlays):
-                                        with col:
-                                            st.image(head_overlays[idx], caption=f"Head {idx+1}", use_column_width=True)
-
-                        elif viz_mode == "Attention Rollout":
-                            rollout_overlay = get_attention_rollout(pil_img, model, processor, alpha=alpha, discard_ratio=discard_ratio)
-                            st.image(rollout_overlay, caption="Attention Rollout (누적)", use_column_width=True)
-                            st.success("✅ Attention Rollout: 모든 레이어의 attention을 누적하여 최종적으로 모델이 집중하는 영역을 보여줍니다!")
-
-                        st.session_state['computing_attention'] = False
-                        st.success("✅ Attention 시각화 완료!")
-
-                    except Exception as e:
-                        st.error(f"시각화 실패: {e}")
-                        import traceback
-                        with st.expander("에러 상세 정보"):
-                            st.text(traceback.format_exc())
-                        st.session_state['computing_attention'] = False
-                else:
-                    st.caption("왼쪽에서 설정 후 'Attention Map 생성' 버튼을 클릭하세요")
-                    st.image("https://via.placeholder.com/400x300?text=Attention+Map+will+appear+here",
-                            caption="Attention Map이 여기에 표시됩니다")
 
     def _render_dino_tab(self):
         """DINO & 자기지도학습 탭 - 상세하고 직관적인 설명"""
