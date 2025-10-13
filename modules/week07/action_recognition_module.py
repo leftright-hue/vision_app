@@ -1081,7 +1081,7 @@ class ActionRecognitionModule(BaseImageProcessor):
             st.success("✅ 정상 - 이상 행동이 감지되지 않았습니다.")
 
             if method.startswith("Optical Flow") and 'avg_motion' in results:
-                st.info(f"평균 움직임: {results['avg_motion']:.2f} 픽셀 (정상 범위)
+                st.info(f"평균 움직임: {results['avg_motion']:.2f} 픽셀 (정상 범위)")
 
     # ==================== Tab 6: MediaPipe 실시간 ====================
 

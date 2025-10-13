@@ -246,8 +246,12 @@ class EmotionRecognitionModule(BaseImageProcessor):
                 # 이미지 정보
                 with st.expander('이미지 정보'):
                     stats = self.get_image_stats(image)
-                    st.write(f"**크기**: {stats['width']} x {stats['height']}")
-                    st.write(f"**모드**: {stats['mode']}")
+                    # PIL Image에서 직접 크기 정보 가져오기
+                    width, height = image.size if hasattr(image, 'size') else (stats.get('shape', 'Unknown'), 'Unknown')
+                    st.write(f"**크기**: {width} x {height}")
+                    st.write(f"**모드**: {getattr(image, 'mode', 'Unknown')}")
+                    st.write(f"**데이터 타입**: {stats.get('dtype', 'Unknown')}")
+                    st.write(f"**픽셀 범위**: {stats.get('min', 0):.1f} ~ {stats.get('max', 255):.1f}")
 
             with col2:
                 st.subheader('감정 분석 결과')
@@ -642,7 +646,7 @@ class EmotionRecognitionModule(BaseImageProcessor):
         # 입력 타입 선택
         input_type = st.radio(
             '입력 타입을 선택하세요',
-            ['📁 이미지 파일 (여러 개)', '🎬 비디오 파일'],
+            ['📁 이미지 파일 (여러 개)', '🎬 비디오 파일', '🌐 영상 URL (YouTube 등)'],
             horizontal=True
         )
 
@@ -659,7 +663,7 @@ class EmotionRecognitionModule(BaseImageProcessor):
                 help='분석할 이미지들을 시간 순서대로 선택하세요'
             )
 
-        else:  # 비디오 파일
+        elif input_type == '🎬 비디오 파일':  # 비디오 파일
             # OpenCV 체크
             try:
                 import cv2
@@ -675,98 +679,163 @@ class EmotionRecognitionModule(BaseImageProcessor):
                     key='video_upload',
                     help='감정 변화를 분석할 비디오 파일을 선택하세요'
                 )
+                
+        else:  # 영상 URL
+            # OpenCV 체크
+            try:
+                import cv2
+                HAS_OPENCV = True
+            except ImportError:
+                HAS_OPENCV = False
+                st.error('⚠️ 영상 URL 처리를 위해 OpenCV가 필요합니다. `pip install opencv-python`을 실행하세요.')
 
-                if uploaded_video is not None:
-                    # 비디오 옵션
-                    st.subheader('🎬 비디오 처리 옵션')
+            if HAS_OPENCV:
+                st.subheader('🌐 영상 URL 입력')
+                
+                # URL 입력
+                video_url = st.text_input(
+                    '영상 URL을 입력하세요',
+                    placeholder='https://www.youtube.com/watch?v=... 또는 직접 비디오 URL',
+                    help='YouTube URL 또는 직접 접근 가능한 비디오 파일 URL을 입력하세요'
+                )
+                
+                # YouTube 처리 안내
+                with st.expander('📺 YouTube 영상 사용법'):
+                    st.markdown("""
+                    **YouTube URL 사용 방법**:
+                    1. YouTube 영상 페이지에서 URL 복사
+                    2. 위 입력창에 붙여넣기
+                    3. `pip install yt-dlp` 설치 권장 (더 안정적)
+                    
+                    **직접 비디오 URL**:
+                    - `.mp4`, `.avi` 등 직접 접근 가능한 파일 URL
+                    - 웹서버에서 호스팅되는 비디오 파일
+                    
+                    **제한사항**:
+                    - 일부 사이트는 접근 제한이 있을 수 있습니다
+                    - 긴 영상은 처리 시간이 오래 걸릴 수 있습니다
+                    """)
+                
+                uploaded_video = None  # URL 방식에서는 None으로 설정
 
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        sample_rate = st.slider(
-                            '샘플링 비율 (N 프레임마다 1개)',
-                            min_value=1,
-                            max_value=60,
-                            value=30,
-                            help='30이면 30프레임마다 1개씩 추출 (FPS 30일 때 1초마다 1장)'
-                        )
+        # 비디오 파일 또는 URL이 있을 때 처리 옵션 표시
+        if (input_type == '🎬 비디오 파일' and uploaded_video is not None) or (input_type == '🌐 영상 URL (YouTube 등)' and video_url):
+            # 비디오 옵션
+            st.subheader('🎬 비디오 처리 옵션')
 
-                    with col2:
-                        max_frames = st.number_input(
-                            '최대 프레임 수',
-                            min_value=10,
-                            max_value=500,
-                            value=100,
-                            help='추출할 최대 프레임 개수 (API 비용 절감)'
-                        )
+            col1, col2 = st.columns(2)
+            with col1:
+                sample_rate = st.slider(
+                    '샘플링 비율 (N 프레임마다 1개)',
+                    min_value=1,
+                    max_value=60,
+                    value=30,
+                    help='30이면 30프레임마다 1개씩 추출 (FPS 30일 때 1초마다 1장)'
+                )
 
-                    if st.button('🎬 비디오에서 프레임 추출', type='primary'):
-                        with st.spinner('비디오에서 프레임을 추출하고 있습니다...'):
-                            try:
-                                import tempfile
-                                import os
+            with col2:
+                max_frames = st.number_input(
+                    '최대 프레임 수',
+                    min_value=10,
+                    max_value=500,
+                    value=100,
+                    help='추출할 최대 프레임 개수 (API 비용 절감)'
+                )
 
-                                # 임시 파일로 저장
-                                with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
-                                    tmp_file.write(uploaded_video.read())
-                                    tmp_path = tmp_file.name
+            if st.button('🎬 비디오에서 프레임 추출', type='primary'):
+                with st.spinner('비디오에서 프레임을 추출하고 있습니다...'):
+                    try:
+                        import tempfile
+                        import os
 
-                                # OpenCV로 프레임 추출
-                                cap = cv2.VideoCapture(tmp_path)
+                        # 비디오 소스 결정
+                        if input_type == '🎬 비디오 파일':
+                            # 파일 업로드 방식
+                            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
+                                tmp_file.write(uploaded_video.read())
+                                video_source = tmp_file.name
+                        else:
+                            # URL 방식
+                            video_source = video_url
+                            
+                            # YouTube URL 처리
+                            if 'youtube.com' in video_url or 'youtu.be' in video_url:
+                                try:
+                                    # yt-dlp 시도
+                                    import yt_dlp
+                                    with yt_dlp.YoutubeDL({'format': 'best[height<=720]'}) as ydl:
+                                        info = ydl.extract_info(video_url, download=False)
+                                        video_source = info['url']
+                                    st.success('✅ YouTube URL 처리 성공')
+                                except ImportError:
+                                    st.warning('⚠️ yt-dlp가 설치되지 않았습니다. 직접 URL로 시도합니다.')
+                                except Exception as e:
+                                    st.error(f'YouTube URL 처리 실패: {e}')
+                                    st.stop()
 
-                                if not cap.isOpened():
-                                    st.error('비디오를 열 수 없습니다')
-                                else:
-                                    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                                    fps = cap.get(cv2.CAP_PROP_FPS)
+                        # OpenCV로 프레임 추출
+                        cap = cv2.VideoCapture(video_source)
 
-                                    st.info(f'📹 비디오 정보: 총 {total_frames} 프레임, {fps:.2f} FPS')
+                        if not cap.isOpened():
+                            st.error('비디오를 열 수 없습니다. URL이 올바른지 확인해주세요.')
+                        else:
+                            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                            fps = cap.get(cv2.CAP_PROP_FPS)
 
-                                    frames = []
-                                    frame_idx = 0
-                                    saved_count = 0
+                            st.info(f'📹 비디오 정보: 총 {total_frames} 프레임, {fps:.2f} FPS')
 
-                                    progress_bar = st.progress(0)
-                                    status_text = st.empty()
+                            frames = []
+                            frame_idx = 0
+                            saved_count = 0
 
-                                    while True:
-                                        ret, frame = cap.read()
-                                        if not ret:
-                                            break
+                            progress_bar = st.progress(0)
+                            status_text = st.empty()
 
-                                        # 샘플링
-                                        if frame_idx % sample_rate == 0:
-                                            # BGR → RGB 변환
-                                            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                                            pil_image = Image.fromarray(rgb_frame)
-                                            frames.append(pil_image)
-                                            saved_count += 1
+                            while True:
+                                ret, frame = cap.read()
+                                if not ret:
+                                    break
 
-                                            status_text.text(f'프레임 추출 중... {saved_count}개')
-                                            progress_bar.progress(min(1.0, saved_count / max_frames))
+                                # 샘플링
+                                if frame_idx % sample_rate == 0:
+                                    # BGR → RGB 변환
+                                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                                    pil_image = Image.fromarray(rgb_frame)
+                                    frames.append(pil_image)
+                                    saved_count += 1
 
-                                            if saved_count >= max_frames:
-                                                break
+                                    status_text.text(f'프레임 추출 중... {saved_count}개')
+                                    progress_bar.progress(min(1.0, saved_count / max_frames))
 
-                                        frame_idx += 1
+                                    if saved_count >= max_frames:
+                                        break
 
-                                    cap.release()
-                                    os.unlink(tmp_path)  # 임시 파일 삭제
+                                frame_idx += 1
 
-                                    status_text.empty()
-                                    progress_bar.empty()
+                            cap.release()
+                            
+                            # 임시 파일 정리
+                            if input_type == '🎬 비디오 파일':
+                                try:
+                                    os.unlink(video_source)  # 임시 파일 삭제
+                                except:
+                                    pass
 
-                                    video_frames = frames
-                                    st.session_state['video_frames'] = frames
-                                    st.success(f'✅ 총 {len(frames)}개 프레임 추출 완료!')
+                            status_text.empty()
+                            progress_bar.empty()
 
-                            except Exception as e:
-                                st.error(f'비디오 처리 중 오류 발생: {e}')
-                                import traceback
-                                st.text(traceback.format_exc())
+                            video_frames = frames
+                            st.session_state['video_frames'] = frames
+                            st.success(f'✅ 총 {len(frames)}개 프레임 추출 완료!')
 
-                # 세션 상태에서 프레임 가져오기
-                if 'video_frames' in st.session_state:
-                    video_frames = st.session_state['video_frames']
+                    except Exception as e:
+                        st.error(f'비디오 처리 중 오류 발생: {e}')
+                        import traceback
+                        st.text(traceback.format_exc())
+
+        # 세션 상태에서 프레임 가져오기 (비디오 처리 섹션 외부로 이동)
+        if 'video_frames' in st.session_state:
+            video_frames = st.session_state['video_frames']
 
         # 이미지/비디오 데이터 확인
         images_to_analyze = None
@@ -798,8 +867,19 @@ class EmotionRecognitionModule(BaseImageProcessor):
                 if len(video_frames) > 5:
                     st.caption(f'... 외 {len(video_frames) - 5}개 프레임')
 
-        # 분석 버튼
-        if images_to_analyze:
+        # 분석 버튼 및 상태 확인
+        if images_to_analyze and len(images_to_analyze) > 0:
+            st.info(f'📊 분석 준비 완료: {len(images_to_analyze)}개 항목')
+        elif uploaded_files and len(uploaded_files) > 0:
+            images_to_analyze = uploaded_files
+            st.info(f'📊 분석 준비 완료: {len(uploaded_files)}개 이미지')
+        elif video_frames and len(video_frames) > 0:
+            images_to_analyze = video_frames
+            st.info(f'📊 분석 준비 완료: {len(video_frames)}개 비디오 프레임')
+        else:
+            st.info('👆 이미지를 업로드하거나 비디오에서 프레임을 추출하세요')
+            
+        if images_to_analyze and len(images_to_analyze) > 0:
             if st.button('🔍 시계열 분석 시작', type='primary', use_container_width=True):
                 # EmotionTimeSeries 객체 생성
                 timeseries = EmotionTimeSeries(window_size=len(images_to_analyze))
@@ -847,12 +927,24 @@ class EmotionRecognitionModule(BaseImageProcessor):
                 st.subheader('📊 분석 요약')
 
                 summary = timeseries.get_summary()
+                
+                # 추가 통계 계산
+                total_frames = len(timeseries.history)
+                change_points = timeseries.detect_change_points()
+                
+                # 지배적 감정 찾기
+                if summary:
+                    dominant_emotion = max(summary.keys(), key=lambda x: summary[x]['mean'])
+                    avg_confidence = np.mean([summary[emotion]['mean'] for emotion in summary])
+                else:
+                    dominant_emotion = "Unknown"
+                    avg_confidence = 0.0
 
                 summary_cols = st.columns(4)
-                summary_cols[0].metric('총 프레임 수', summary['total_frames'])
-                summary_cols[1].metric('지배적 감정', summary['dominant_emotion'].capitalize())
-                summary_cols[2].metric('평균 신뢰도', f"{summary['avg_confidence']:.2%}")
-                summary_cols[3].metric('감정 변화점', len(summary['change_points']))
+                summary_cols[0].metric('총 프레임 수', total_frames)
+                summary_cols[1].metric('지배적 감정', dominant_emotion.capitalize())
+                summary_cols[2].metric('평균 신뢰도', f"{avg_confidence:.2%}")
+                summary_cols[3].metric('감정 변화점', len(change_points))
 
                 # 시계열 그래프
                 st.subheader('📈 감정 변화 타임라인')
@@ -942,7 +1034,7 @@ class EmotionRecognitionModule(BaseImageProcessor):
                         st.error(f'CSV 내보내기 실패: {e}')
 
         else:
-            st.info('👆 여러 이미지 또는 비디오를 업로드하여 시계열 분석을 시작하세요')
+            st.info('👆 여러 이미지 업로드, 비디오 파일 또는 YouTube URL로 시계열 분석을 시작하세요')
 
             # 사용 팁
             with st.expander('💡 시계열 분석 사용 팁'):

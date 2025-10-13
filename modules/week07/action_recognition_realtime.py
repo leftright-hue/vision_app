@@ -474,6 +474,42 @@ class RealtimeActionRecognitionModule(BaseImageProcessor):
                 api_ready = True
             else:
                 st.warning("⚠️ GOOGLE_APPLICATION_CREDENTIALS 환경 변수가 설정되지 않았습니다.")
+                st.info("💡 Google Cloud 서비스 계정 JSON 키 파일이 필요합니다.")
+                
+                with st.expander("🔧 Google Cloud 서비스 계정 키 설정 방법"):
+                    st.markdown("""
+                    **1단계: Google Cloud Console에서 서비스 계정 생성**
+                    1. [Google Cloud Console](https://console.cloud.google.com/) 접속
+                    2. 프로젝트 선택 또는 새 프로젝트 생성
+                    3. "IAM 및 관리자" → "서비스 계정" 메뉴 선택
+                    4. "서비스 계정 만들기" 클릭
+                    5. 서비스 계정 세부정보 입력
+                    
+                    **2단계: Video Intelligence API 권한 부여**
+                    1. 생성된 서비스 계정 선택
+                    2. "권한" 탭에서 "권한 부여" 클릭
+                    3. "Cloud Video Intelligence API User" 역할 추가
+                    
+                    **3단계: JSON 키 파일 다운로드**
+                    1. "키" 탭에서 "키 추가" → "새 키 만들기"
+                    2. JSON 형식 선택하고 "만들기" 클릭
+                    3. 다운로드된 JSON 키 파일을 안전한 위치에 저장
+                    
+                    **4단계: 환경 변수 설정**
+                    ```bash
+                    export GOOGLE_APPLICATION_CREDENTIALS="path/to/your/service-account-key.json"
+                    ```
+                    
+                    또는 `.env` 파일에 추가:
+                    ```
+                    GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/service-account-key.json
+                    ```
+                    """)
+
+        elif auth_method == "시뮬레이션 모드":
+            st.info("� 시뮬레이션 모드: 실제 API 호출 없이 예시 결과를 보여줍니다.")
+            st.success("✅ 학습용 데모 모드가 활성화되었습니다.")
+            api_ready = True
 
         elif auth_method == "직접 입력":
             api_key_file = st.file_uploader(
@@ -489,9 +525,7 @@ class RealtimeActionRecognitionModule(BaseImageProcessor):
                 st.success("✅ API 키가 로드되었습니다.")
                 api_ready = True
 
-        else:  # 시뮬레이션 모드
-            st.info("📝 시뮬레이션 모드: 실제 API 호출 없이 예시 결과를 보여줍니다.")
-            api_ready = True
+
 
         # 분석 기능 선택
         st.subheader("🎯 분석 기능 선택")
