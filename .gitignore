@@ -3,6 +3,10 @@
 .env.local
 .env.*.local
 
+# Google Cloud Credentials
+*.json
+credible-runner-474101-f6-81a2548916d0.json
+
 # Python
 __pycache__/
 *.py[cod]
