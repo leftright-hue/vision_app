@@ -45,6 +45,9 @@ CNNModule = _try_import_class('modules.week02_cnn.cnn_module', 'CNNModule')
 TransferLearningModule = _try_import_class('modules.week03.transfer_learning_module', 'TransferLearningModule')
 VisionTransformerModule = _try_import_class('modules.week04.vision_transformer_module', 'VisionTransformerModule')
 ObjectDetectionModule = _try_import_class('modules.week05.object_detection_module', 'ObjectDetectionModule')
+SegmentationModule = _try_import_class('modules.week06.segmentation_module', 'SegmentationModule')
+ActionRecognitionModule = _try_import_class('modules.week07.action_recognition_module', 'ActionRecognitionModule')
+EmotionRecognitionModule = _try_import_class('modules.week08.emotion_recognition_module', 'EmotionRecognitionModule')
 
 # 페이지 설정
 st.set_page_config(
@@ -65,6 +68,9 @@ class SmartVisionApp:
             'Week 3: Transfer Learning': TransferLearningModule,
             'Week 4: Vision Transformer': VisionTransformerModule,
             'Week 5: Object Detection': ObjectDetectionModule,
+            'Week 6: Segmentation & SAM': SegmentationModule,
+            'Week 7: Action Recognition': ActionRecognitionModule,
+            'Week 8: Emotion Recognition': EmotionRecognitionModule,
         }
 
     def run(self):
@@ -94,6 +100,9 @@ class SmartVisionApp:
             - Week 3: Transfer Learning ✅
             - Week 4: Vision Transformer ✅
             - Week 5: Object Detection ✅
+            - Week 6: Segmentation & SAM ✅
+            - Week 7: Action Recognition ✅
+            - Week 8: Emotion Recognition ✅
             """)
 
             # API 사용 안내
@@ -169,6 +178,9 @@ class SmartVisionApp:
                 "Week 3: Transfer Learning": 100,
                 "Week 4: Vision Transformer": 100,
                 "Week 5: Object Detection": 100,
+                "Week 6: Segmentation & SAM": 100,
+                "Week 7: Action Recognition": 100,
+                "Week 8: Emotion Recognition": 100,
             }
 
             for week, progress in progress_data.items():
@@ -208,6 +220,30 @@ class SmartVisionApp:
             - YOLO 아키텍처
             - IoU & mAP 평가지표
             - 실시간 객체 탐지
+            """)
+
+            st.subheader("✅ Week 6: Segmentation & SAM")
+            st.markdown("""
+            - U-Net 아키텍처
+            - Semantic/Instance/Panoptic 세그멘테이션
+            - Segment Anything Model (SAM)
+            - 배경 제거 및 자동 라벨링
+            """)
+
+            st.subheader("✅ Week 7: Action Recognition")
+            st.markdown("""
+            - 3D CNN & Two-Stream Networks
+            - Video Transformer (VideoMAE, TimeSformer)
+            - Optical Flow & 시간적 특징
+            - 실시간 행동 인식 및 운동 카운터
+            """)
+
+            st.subheader("✅ Week 8: Emotion Recognition")
+            st.markdown("""
+            - Google Gemini & OpenAI GPT-4o API
+            - VAD 3차원 감정 모델
+            - 멀티모달 분석 (이미지 + 텍스트)
+            - 시계열 감정 변화 추적
             """)
 
         st.markdown("---")
