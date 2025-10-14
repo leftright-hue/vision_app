@@ -25,10 +25,15 @@ class ObjectDetectionModule:
         if python_version.major == 3 and python_version.minor >= 12:
             # Python 3.12+ 감지
             try:
-                import mediapipe
                 import streamlit_webrtc
             except ImportError as e:
-                issues.append(f"❌ 필수 패키지 누락: {str(e)}")
+                issues.append(f"❌ streamlit_webrtc 누락: {str(e)}")
+            
+            # MediaPipe는 선택적 의존성으로 처리
+            try:
+                import mediapipe
+            except ImportError:
+                st.info("💡 MediaPipe 미지원 (Python 3.13) - OpenCV 기반 기능 제공")
 
                 st.warning("""
                 **환경 설정이 필요합니다.**

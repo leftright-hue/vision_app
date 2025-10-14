@@ -98,14 +98,34 @@ class InstagramFilterMaker:
         
         # RGB 채널 분리
         r, g, b = img_rgb[:, :, 0], img_rgb[:, :, 1], img_rgb[:, :, 2]
-        rgb_combined = np.hstack([r, g, b])
+        # 이미지 크기가 다를 수 있으므로 안전하게 처리
+        try:
+            rgb_combined = np.hstack([r, g, b])
+        except ValueError:
+            # 크기가 다른 경우 각 채널을 같은 크기로 조정
+            min_height = min(r.shape[0], g.shape[0], b.shape[0])
+            min_width = min(r.shape[1], g.shape[1], b.shape[1])
+            r = r[:min_height, :min_width]
+            g = g[:min_height, :min_width]
+            b = b[:min_height, :min_width]
+            rgb_combined = np.hstack([r, g, b])
         axes[1, 1].imshow(rgb_combined, cmap='gray')
         axes[1, 1].set_title('🔴🟢🔵 RGB 채널\n(빨강|초록|파랑)')
         axes[1, 1].axis('off')
         
         # HSV 채널 분리
         h, s, v = img_hsv[:, :, 0], img_hsv[:, :, 1], img_hsv[:, :, 2]
-        hsv_combined = np.hstack([h, s, v])
+        # 이미지 크기가 다를 수 있으므로 안전하게 처리
+        try:
+            hsv_combined = np.hstack([h, s, v])
+        except ValueError:
+            # 크기가 다른 경우 각 채널을 같은 크기로 조정
+            min_height = min(h.shape[0], s.shape[0], v.shape[0])
+            min_width = min(h.shape[1], s.shape[1], v.shape[1])
+            h = h[:min_height, :min_width]
+            s = s[:min_height, :min_width]
+            v = v[:min_height, :min_width]
+            hsv_combined = np.hstack([h, s, v])
         axes[1, 2].imshow(hsv_combined, cmap='gray')
         axes[1, 2].set_title('🌈💪☀️ HSV 채널\n(색깔|진하기|밝기)')
         axes[1, 2].axis('off')

@@ -980,11 +980,30 @@ class SegmentationModule(BaseImageProcessor):
 
             if st.button("🎨 배경 제거", type="primary"):
                 with st.spinner("처리 중..."):
-                    # 세그멘테이션
-                    mask = sam.segment_with_points(image, [(x, y)], [1])
+                    try:
+                        # 세그멘테이션
+                        mask = sam.segment_with_points(image, [(x, y)], [1])
+                        
+                        # 마스크 유효성 검사
+                        if mask is None:
+                            st.error("세그멘테이션에 실패했습니다. 다른 점을 선택해보세요.")
+                            return
+                        
+                        # 마스크 형태 검증
+                        if len(mask.shape) != 2:
+                            st.error(f"마스크 형태가 올바르지 않습니다: {mask.shape}")
+                            return
+                        
+                        st.success(f"마스크 생성 완료: {mask.shape}")
 
-                    # 배경 교체
-                    result_image = self._replace_background(image, mask, bg_color)
+                        # 배경 교체
+                        result_image = self._replace_background(image, mask, bg_color)
+                        
+                    except Exception as e:
+                        st.error(f"세그멘테이션 처리 중 오류 발생: {str(e)}")
+                        import traceback
+                        st.text(traceback.format_exc())
+                        return
 
                     st.image(result_image, caption="결과", use_container_width=True)
 
@@ -1015,11 +1034,36 @@ class SegmentationModule(BaseImageProcessor):
         # 새 배경 생성
         bg = Image.new("RGB", image.size, (r, g, b))
 
-        # 마스크를 PIL 이미지로
+        # 마스크를 PIL 이미지로 변환하면서 크기 확인
         mask_img = Image.fromarray((mask * 255).astype(np.uint8))
+        
+        # 마스크와 이미지 크기가 다른 경우 마스크를 이미지 크기에 맞게 조정
+        if mask_img.size != image.size:
+            mask_img = mask_img.resize(image.size, Image.Resampling.NEAREST)
+        
+        # 마스크가 L 모드(그레이스케일)인지 확인하고, 필요시 변환
+        if mask_img.mode != 'L':
+            mask_img = mask_img.convert('L')
 
         # 합성
-        result = Image.composite(image, bg, mask_img)
+        try:
+            result = Image.composite(image, bg, mask_img)
+        except ValueError as e:
+            # 크기 불일치 문제가 여전히 있는 경우, 대체 방법 사용
+            st.error(f"이미지 합성 중 오류 발생: {e}")
+            # numpy를 사용한 대체 방법
+            image_np = np.array(image)
+            bg_np = np.array(bg)
+            mask_np = np.array(mask_img) / 255.0
+            
+            # 마스크를 3차원으로 확장
+            if len(mask_np.shape) == 2:
+                mask_np = np.stack([mask_np] * 3, axis=-1)
+            
+            # 배경 교체
+            result_np = image_np * mask_np + bg_np * (1 - mask_np)
+            result = Image.fromarray(result_np.astype(np.uint8))
+        
         return result
 
     def _app_auto_labeling(self):
