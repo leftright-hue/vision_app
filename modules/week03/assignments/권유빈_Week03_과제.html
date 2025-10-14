@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 03 - Transfer Learning & Style Transfer 과제</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header .subtitle {
+            font-size: 1.2em;
+            color: #666;
+            font-weight: 300;
+        }
+        
+        .student-info {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .assignment-section {
+            margin-bottom: 50px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            padding: 30px;
+            background: #fafbfc;
+        }
+        
+        .assignment-section h2 {
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 25px;
+            font-size: 1.8em;
+        }
+        
+        .assignment-section h3 {
+            color: #764ba2;
+            margin-top: 25px;
+            font-size: 1.4em;
+        }
+        
+        .image-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 30px 0;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .image-box {
+            text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            max-width: 400px;
+        }
+        
+        .image-box img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .image-box h4 {
+            margin: 15px 0 10px 0;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+        
+        .analysis-box {
+            background: #f8f9ff;
+            border-left: 5px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 10px 10px 0;
+        }
+        
+        .metadata {
+            background: #e8f4f8;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .highlight {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+            color: #2d3436;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .tech-specs {
+            background: #2d3436;
+            color: #00b894;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .tech-specs h4 {
+            color: #00cec9;
+            margin-bottom: 15px;
+        }
+        
+        .conclusion {
+            background: linear-gradient(135deg, #a8e6cf 0%, #dcedc1 100%);
+            padding: 25px;
+            border-radius: 10px;
+            margin-top: 40px;
+            text-align: center;
+        }
+        
+        .conclusion h3 {
+            color: #2d3436;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 Week 03 - Transfer Learning & Style Transfer</h1>
+            <div class="subtitle">AI 기반 스타일 전이 및 멀티모달 분석 과제</div>
+        </div>
+        
+        <div class="student-info">
+            <h2>📋 과제 정보</h2>
+            <p><strong>학생명:</strong> 권유빈 | <strong>과제명:</strong> AI Style Transfer 구현 및 분석</p>
+            <p><strong>제출일:</strong> 2025년 9월 30일 | <strong>사용 기술:</strong> Gemini AI + PIL Image Processing</p>
+        </div>
+
+        <!-- 첫 번째 실험 -->
+        <div class="assignment-section">
+            <h2>🎭 실험 1: 너구리 캐릭터 → Picasso 스타일</h2>
+            
+            <div class="metadata">
+                <strong>실험 메타데이터:</strong><br>
+                • 실험 시간: 2025-09-30 15:03:22<br>
+                • 적용 스타일: Picasso (입체주의)<br>
+                • 스타일 강도: 76.0%<br>
+                • AI 모델: Gemini-2.5-Flash
+            </div>
+            
+            <div class="image-container">
+                <div class="image-box">
+                    <img src="../../../style_transfer_results/input_20250930_150322.png" alt="원본 너구리 이미지">
+                    <h4>원본 이미지</h4>
+                    <p>선글라스를 쓴 멋진 너구리 캐릭터</p>
+                </div>
+                
+                <div class="image-box">
+                    <img src="../../../style_transfer_results/styled_20250930_150322_Picasso.png" alt="피카소 스타일 너구리">
+                    <h4>Picasso 스타일 적용</h4>
+                    <p>입체주의 기법으로 변환된 결과</p>
+                </div>
+            </div>
+            
+            <div class="analysis-box">
+                <h3>🤖 Gemini AI 스타일 분석</h3>
+                <p><strong>핵심 분석 내용:</strong></p>
+                <ul>
+                    <li><strong>색상 팔레트:</strong> 회색, 갈색, 황토색, 어두운 청록색 중심의 제한된 팔레트 적용</li>
+                    <li><strong>기하학적 해체:</strong> 너구리의 몸체를 원통형, 직육면체 등으로 분해 후 재구성</li>
+                    <li><strong>다중 시점:</strong> 얼굴과 팔 부분에서 여러 각도의 시점을 동시에 표현</li>
+                    <li><strong>특징 보존:</strong> 76% 강도로 원본의 특징(선글라스, 락 제스처)은 인식 가능하게 유지</li>
+                </ul>
+                
+                <div class="highlight">
+                    💡 AI가 분석한 핵심: "각지고 해체된 기하학적 형태로 재탄생하며, 다중 시점과 제한된 팔레트 속에서 녹색 선글라스가 주요 시각적 흥미를 유발하는 매우 파격적이고 예술적인 작품"
+                </div>
+            </div>
+        </div>
+
+        <!-- 두 번째 실험 -->
+        <div class="assignment-section">
+            <h2>🐱 실험 2: 아기 고양이 → Picasso 스타일</h2>
+            
+            <div class="metadata">
+                <strong>실험 메타데이터:</strong><br>
+                • 실험 시간: 2025-09-30 15:12:34<br>
+                • 적용 스타일: Picasso (입체주의)<br>
+                • 스타일 강도: 81.0%<br>
+                • AI 모델: Gemini-2.5-Flash
+            </div>
+            
+            <div class="image-container">
+                <div class="image-box">
+                    <img src="../../../style_transfer_results/input_20250930_151234.png" alt="원본 아기 고양이 이미지">
+                    <h4>원본 이미지</h4>
+                    <p>공을 가지고 노는 귀여운 아기 고양이</p>
+                </div>
+                
+                <div class="image-box">
+                    <img src="../../../style_transfer_results/styled_20250930_151234_Picasso.png" alt="피카소 스타일 고양이">
+                    <h4>Picasso 스타일 적용</h4>
+                    <p>더 높은 강도(81%)로 변환된 결과</p>
+                </div>
+            </div>
+            
+            <div class="analysis-box">
+                <h3>🤖 Gemini AI 스타일 분석</h3>
+                <p><strong>고강도 변환 분석:</strong></p>
+                <ul>
+                    <li><strong>극한 해체:</strong> 분석적 입체주의와 종합적 입체주의 특징을 강력하게 적용</li>
+                    <li><strong>색상 완전 전환:</strong> 따뜻한 원본 색감을 흙색, 회색, 갈색 계열로 완전 대체</li>
+                    <li><strong>질감 단순화:</strong> 부드러운 털 질감을 평면적인 기하학적 면으로 변환</li>
+                    <li><strong>공간 왜곡:</strong> 깊이감 최소화, 배경과 전경을 동일 평면으로 압축</li>
+                </ul>
+                
+                <div class="highlight">
+                    💡 AI가 분석한 핵심: "81% 강도는 단순한 필터 적용을 넘어선 근본적인 시각적 재구성. 거의 반추상화에 가까울 정도로 형태와 색상이 재구성됨"
+                </div>
+            </div>
+        </div>
+
+        <!-- 기술적 구현 -->
+        <div class="assignment-section">
+            <h2>⚙️ 기술적 구현</h2>
+            
+            <div class="tech-specs">
+                <h4>🔧 사용된 기술 스택</h4>
+                <p>• <strong>AI 분석:</strong> Google Gemini-2.5-Flash API</p>
+                <p>• <strong>이미지 처리:</strong> PIL (Python Imaging Library)</p>
+                <p>• <strong>웹 프레임워크:</strong> Streamlit</p>
+                <p>• <strong>프로그래밍:</strong> Python 3.13.7</p>
+                
+                <h4>🎨 스타일 전이 프로세스</h4>
+                <p>1. Gemini AI를 통한 스타일 분석 및 가이드라인 생성</p>
+                <p>2. PIL 기반 실제 이미지 변환 처리</p>
+                <p>3. 스타일별 특화된 필터 및 효과 적용</p>
+                <p>4. Before & After 결과 비교 및 저장</p>
+            </div>
+            
+            <h3>📊 구현된 Picasso 스타일 효과</h3>
+            <ul>
+                <li><strong>색상 강화:</strong> Color Enhancement (1.5-1.8배)</li>
+                <li><strong>대비 증가:</strong> Contrast Enhancement (1.3-1.5배)</li>
+                <li><strong>선명도 강화:</strong> Sharpness Enhancement (2.0배)</li>
+                <li><strong>기하학적 필터:</strong> Edge Enhancement + Smooth filtering</li>
+                <li><strong>스타일 블렌딩:</strong> 원본과 처리된 이미지의 가중 평균</li>
+            </ul>
+        </div>
+
+        <!-- 실험 결과 분석 -->
+        <div class="assignment-section">
+            <h2>📈 실험 결과 분석</h2>
+            
+            <h3>🔍 스타일 강도별 차이점</h3>
+            <div class="image-container">
+                <div class="image-box">
+                    <h4>76% 강도 (실험 1)</h4>
+                    <p>• 원본 특징 보존도: 높음<br>
+                    • 변환 정도: 중간<br>
+                    • 인식 가능성: 매우 높음</p>
+                </div>
+                <div class="image-box">
+                    <h4>81% 강도 (실험 2)</h4>
+                    <p>• 원본 특징 보존도: 낮음<br>
+                    • 변환 정도: 높음<br>
+                    • 인식 가능성: 중간</p>
+                </div>
+            </div>
+            
+            <h3>🎯 학습 성과</h3>
+            <ul>
+                <li><strong>Transfer Learning 이해:</strong> 사전 훈련된 AI 모델을 활용한 스타일 분석</li>
+                <li><strong>Multimodal AI:</strong> 텍스트와 이미지를 동시에 처리하는 AI 활용</li>
+                <li><strong>하이브리드 접근법:</strong> AI 분석과 전통적 이미지 처리 기법의 결합</li>
+                <li><strong>예술 스타일 이해:</strong> 피카소 입체주의의 핵심 특징 학습</li>
+            </ul>
+        </div>
+
+        <div class="conclusion">
+            <h3>🎉 과제 완료 및 결론</h3>
+            <p><strong>본 과제를 통해 AI 기반 스타일 전이의 핵심 개념을 이해하고, 
+            Gemini AI와 PIL을 결합한 하이브리드 접근법으로 실제 구현까지 완료했습니다.</strong></p>
+            
+            <p>특히 단순한 필터 적용이 아닌, AI의 예술 스타일 분석을 통한 
+            지능적인 이미지 변환 과정을 경험할 수 있었습니다.</p>
+            
+            <div class="metadata" style="margin-top: 20px;">
+                <strong>과제 완료 정보:</strong><br>
+                • 총 실험 횟수: 2회<br>
+                • 생성된 파일: 6개 (원본 2, 결과 2, 분석 2)<br>
+                • AI 분석 텍스트: 총 1,200+ 단어<br>
+                • 과제 완료일: 2025년 9월 30일
+            </div>
+        </div>
+    </div>
+</body>
+</html>

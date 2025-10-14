@@ -19,6 +19,39 @@ import sys
 # 프로젝트 경로 추가
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+def safe_get_response_text(response):
+    """
+    Gemini API 응답에서 안전하게 텍스트를 추출하는 함수
+    finish_reason이 1이거나 응답이 비어있을 때의 처리를 포함
+    """
+    try:
+        # candidates 구조를 직접 확인
+        if hasattr(response, 'candidates') and response.candidates:
+            candidate = response.candidates[0]
+            
+            # content가 있는지 확인
+            if hasattr(candidate, 'content') and candidate.content:
+                if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                    text_parts = []
+                    for part in candidate.content.parts:
+                        if hasattr(part, 'text') and part.text:
+                            text_parts.append(part.text)
+                    if text_parts:
+                        return ''.join(text_parts)
+        
+        # 대체 방법: 직접 문자열 변환 시도
+        try:
+            response_str = str(response)
+            if response_str and response_str != str(type(response)) and len(response_str) > 50:
+                return response_str
+        except:
+            pass
+            
+        return "응답을 생성할 수 없습니다. API가 빈 응답을 반환했습니다."
+        
+    except Exception as e:
+        return f"응답 처리 중 오류가 발생했습니다: {str(e)}"
+
 from core.base_processor import BaseImageProcessor
 from core.ai_models import AIModelManager
 from .transfer_helpers import TransferLearningHelper
@@ -1607,7 +1640,7 @@ class TransferLearningModule(BaseImageProcessor):
 
             # API 설정
             genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-2.5-flash')
 
             # 이미지 분석
             img = Image.open('xray.jpg')
@@ -1615,7 +1648,7 @@ class TransferLearningModule(BaseImageProcessor):
                 "이 X-ray 이미지를 분석해주세요. 폐렴 가능성이 있나요?",
                 img
             ])
-            print(response.text)
+            print(safe_get_response_text(response))
             ```
 
             ### 3. Transfer Learning (PyTorch)
@@ -1680,7 +1713,7 @@ class TransferLearningModule(BaseImageProcessor):
 
                                     st.success("✅ API 분석 완료!")
                                     st.write("**Gemini 분석 결과:**")
-                                    st.info(response.text)
+                                    st.info(safe_get_response_text(response))
                                 else:
                                     st.error("🔴 API Key가 설정되지 않았습니다.")
                             except Exception as e:
@@ -1770,7 +1803,7 @@ class TransferLearningModule(BaseImageProcessor):
                                 api_key = os.getenv('GOOGLE_API_KEY')
                                 if api_key:
                                     genai.configure(api_key=api_key)
-                                    model = genai.GenerativeModel('gemini-1.5-flash')
+                                    model = genai.GenerativeModel('gemini-2.5-flash')
 
                                     img = Image.open(uploaded_pcb)
                                     prompt = f"""
@@ -1786,7 +1819,7 @@ class TransferLearningModule(BaseImageProcessor):
                                     response = model.generate_content([prompt, img])
                                     st.success("✅ API 검사 완료!")
                                     st.write("**Gemini 분석 결과:**")
-                                    st.info(response.text)
+                                    st.info(safe_get_response_text(response))
                                 else:
                                     st.error("API Key가 없습니다.")
                             except Exception as e:
@@ -1879,56 +1912,225 @@ class TransferLearningModule(BaseImageProcessor):
 
                 if st.button("🎨 스타일 전이", key="transfer_style"):
                     with st.spinner("스타일 전이 중..."):
+                        import time
+                        import base64
+                        from datetime import datetime
+                        
+                        # 결과 이미지 저장 폴더 생성
+                        os.makedirs("style_transfer_results", exist_ok=True)
+                        
                         if use_api:
-                            # Google Gemini API 사용
+                            # Google Gemini API + 실제 이미지 변환
                             try:
-                                import os
                                 import google.generativeai as genai
-                                from PIL import Image
+                                from PIL import Image, ImageFilter, ImageEnhance
+                                import io
 
                                 api_key = os.getenv('GOOGLE_API_KEY')
-                                if api_key:
+                                if api_key and api_key != 'your_api_key_here':
+                                    # 1단계: Gemini API로 스타일 분석
                                     genai.configure(api_key=api_key)
+<<<<<<< HEAD
                                     model = genai.GenerativeModel('gemini-2.0-flash-exp')
+=======
+                                    model = genai.GenerativeModel('gemini-2.5-flash')
+>>>>>>> 32858909f53922fd177e2a21f8012c875c0c9e4a
 
                                     img = Image.open(content_image)
                                     style_name = style_choice if style_choice != "직접 업로드" else "업로드된 스타일"
 
                                     prompt = f"""
-                                    이 이미지를 {style_name} 스타일로 변환해주세요.
-                                    아티스트의 특징적인 붓터치, 색상 팔레트, 구도를 적용해주세요.
-                                    스타일 강도: {style_weight * 100}%
+                                    이 이미지에 {style_name} 예술 스타일을 적용하는 방법을 분석해주세요.
+                                    - 아티스트의 특징적인 색상 팔레트와 기법
+                                    - 적용할 수 있는 시각적 효과
+                                    - 스타일 강도: {style_weight * 100}%
                                     """
 
                                     response = model.generate_content([prompt, img])
-                                    st.success("✅ API 이미지 생성 완료!")
-
-                                    # 생성된 이미지가 있으면 표시
-                                    if hasattr(response, 'parts') and len(response.parts) > 0:
-                                        for part in response.parts:
-                                            if hasattr(part, 'inline_data') and part.inline_data:
-                                                st.image(part.inline_data.data, caption="생성된 이미지")
-                                            elif hasattr(part, 'text'):
-                                                st.write("**Gemini 응답:**")
-                                                st.info(part.text)
+                                    analysis_text = safe_get_response_text(response)
+                                    
+                                    # 2단계: 실제 이미지 변환 수행
+                                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                    input_path = f"style_transfer_results/input_{timestamp}.png"
+                                    result_path = f"style_transfer_results/styled_{timestamp}_{style_choice}.png"
+                                    
+                                    # 입력 이미지 저장
+                                    img.save(input_path)
+                                    
+                                    # 스타일에 따른 이미지 처리 (향상된 버전)
+                                    if style_choice == "Van Gogh":
+                                        # Van Gogh 스타일: 소용돌이 효과 + 강한 색상
+                                        result_img = img.filter(ImageFilter.SMOOTH_MORE)
+                                        enhancer = ImageEnhance.Color(result_img)
+                                        result_img = enhancer.enhance(1.8)
+                                        enhancer = ImageEnhance.Contrast(result_img)
+                                        result_img = enhancer.enhance(1.4)
+                                        
+                                    elif style_choice == "Monet":
+                                        # Monet 스타일: 부드러운 인상주의 효과
+                                        result_img = img.filter(ImageFilter.BLUR)
+                                        enhancer = ImageEnhance.Brightness(result_img)
+                                        result_img = enhancer.enhance(1.3)
+                                        enhancer = ImageEnhance.Color(result_img)
+                                        result_img = enhancer.enhance(1.2)
+                                        
+                                    elif style_choice == "Picasso":
+                                        # Picasso 스타일: 기하학적 효과
+                                        result_img = img.filter(ImageFilter.EDGE_ENHANCE_MORE)
+                                        enhancer = ImageEnhance.Sharpness(result_img)
+                                        result_img = enhancer.enhance(2.0)
+                                        enhancer = ImageEnhance.Contrast(result_img)
+                                        result_img = enhancer.enhance(1.5)
+                                        
                                     else:
-                                        st.write("**Gemini 응답:**")
-                                        st.info(response.text)
+                                        # 기본 스타일
+                                        result_img = img.filter(ImageFilter.SMOOTH)
+                                    
+                                    # 스타일 강도 적용
+                                    if style_weight < 1.0:
+                                        result_img = Image.blend(img, result_img, style_weight)
+                                    
+                                    # 결과 이미지 저장
+                                    result_img.save(result_path)
+                                    
+                                    # 분석 텍스트 저장
+                                    text_path = f"style_transfer_results/analysis_{timestamp}.txt"
+                                    with open(text_path, 'w', encoding='utf-8') as f:
+                                        f.write(f"스타일: {style_name}\n")
+                                        f.write(f"강도: {style_weight * 100}%\n")
+                                        f.write(f"생성 시간: {timestamp}\n\n")
+                                        f.write("=== Gemini AI 스타일 분석 ===\n")
+                                        f.write(analysis_text)
+
+                                    st.success("✅ AI 스타일 전이 완료!")
+                                    
+                                    # 결과 표시 (Before & After)
+                                    col_before, col_after = st.columns(2)
+                                    
+                                    with col_before:
+                                        st.write("**변환 전:**")
+                                        st.image(input_path, caption="원본 이미지")
+                                        
+                                    with col_after:
+                                        st.write("**변환 후:**")
+                                        st.image(result_path, caption=f"{style_choice} 스타일 적용")
+                                    
+                                    # AI 분석 결과 표시
+                                    with st.expander("🤖 AI 스타일 분석 결과"):
+                                        st.info(analysis_text)
+                                    
+                                    # 저장된 파일 정보
+                                    st.write("**저장된 파일:**")
+                                    st.code(f"원본: {input_path}")
+                                    st.code(f"결과: {result_path}")
+                                    st.code(f"분석: {text_path}")
+                                    
+                                    # 다운로드 버튼
+                                    with open(result_path, "rb") as file:
+                                        btn = st.download_button(
+                                            label="📥 결과 이미지 다운로드",
+                                            data=file.read(),
+                                            file_name=f"ai_styled_{style_choice}_{timestamp}.png",
+                                            mime="image/png"
+                                        )
+                                    
+                                    st.caption(f"🤖 AI 분석 + 이미지 처리 결과 (스타일 강도: {style_weight * 100}%)")
+                                    
                                 else:
-                                    st.error("API Key가 설정되지 않았습니다.")
+                                    st.error("⚠️ API Key가 설정되지 않았습니다.")
+                                    st.info("시뮬레이션 모드로 전환합니다...")
+                                    # 시뮬레이션 실행
+                                    self._run_style_transfer_simulation(content_image, style_choice, style_weight)
+                                    
                             except Exception as e:
                                 st.error(f"API 오류: {str(e)}")
                                 st.info("시뮬레이션 모드로 전환합니다...")
-                                import time
-                                time.sleep(2)
-                                st.image(content_image, caption="결과 (시뮬레이션)")
+                                # 시뮬레이션 실행
+                                self._run_style_transfer_simulation(content_image, style_choice, style_weight)
                         else:
-                            # 시뮬레이션
-                            import time
-                            time.sleep(2)  # 처리 시뮬레이션
-                            st.success("완료!")
-                            st.image(content_image, caption="결과 (시뮬레이션)")
-                            st.caption("⚠️ 실제 스타일 전이가 아닌 시뮬레이션입니다")
+                            # 시뮬레이션 모드
+                            self._run_style_transfer_simulation(content_image, style_choice, style_weight)
+
+    def _run_style_transfer_simulation(self, content_image, style_choice, style_weight):
+        """스타일 전이 시뮬레이션 (실제 이미지 생성 및 저장)"""
+        import time
+        import numpy as np
+        from PIL import Image, ImageFilter, ImageEnhance
+        from datetime import datetime
+        
+        time.sleep(2)  # 처리 시뮬레이션
+        
+        # 결과 이미지 저장 폴더 생성
+        os.makedirs("style_transfer_results", exist_ok=True)
+        
+        # 입력 이미지 로드
+        img = Image.open(content_image)
+        
+        # 스타일에 따른 이미지 처리 시뮬레이션
+        if style_choice == "Van Gogh":
+            # Van Gogh 스타일 시뮬레이션 (소용돌이 효과)
+            result_img = img.filter(ImageFilter.SMOOTH_MORE)
+            enhancer = ImageEnhance.Color(result_img)
+            result_img = enhancer.enhance(1.5)  # 색상 강화
+            enhancer = ImageEnhance.Contrast(result_img)
+            result_img = enhancer.enhance(1.3)  # 대비 강화
+            
+        elif style_choice == "Monet":
+            # Monet 스타일 시뮬레이션 (부드러운 효과)
+            result_img = img.filter(ImageFilter.BLUR)
+            enhancer = ImageEnhance.Brightness(result_img)
+            result_img = enhancer.enhance(1.2)  # 밝기 증가
+            
+        elif style_choice == "Picasso":
+            # Picasso 스타일 시뮬레이션 (날카로운 효과)
+            result_img = img.filter(ImageFilter.EDGE_ENHANCE_MORE)
+            enhancer = ImageEnhance.Sharpness(result_img)
+            result_img = enhancer.enhance(2.0)  # 선명도 증가
+            
+        else:
+            # 기본 스타일
+            result_img = img.filter(ImageFilter.SMOOTH)
+        
+        # 스타일 강도 적용 (원본과 스타일 적용 이미지를 블렌딩)
+        if style_weight < 1.0:
+            result_img = Image.blend(img, result_img, style_weight)
+        
+        # 파일 저장
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        input_path = f"style_transfer_results/input_{timestamp}.png"
+        result_path = f"style_transfer_results/styled_{timestamp}_{style_choice}.png"
+        
+        img.save(input_path)
+        result_img.save(result_path)
+        
+        st.success("✅ 스타일 전이 완료!")
+        
+        # 결과 표시
+        col_before, col_after = st.columns(2)
+        
+        with col_before:
+            st.write("**변환 전:**")
+            st.image(input_path, caption="원본 이미지")
+            
+        with col_after:
+            st.write("**변환 후:**")
+            st.image(result_path, caption=f"{style_choice} 스타일 적용")
+        
+        # 저장 정보 표시
+        st.write("**저장된 파일:**")
+        st.code(f"원본: {input_path}")
+        st.code(f"결과: {result_path}")
+        
+        # 다운로드 버튼
+        with open(result_path, "rb") as file:
+            btn = st.download_button(
+                label="📥 결과 이미지 다운로드",
+                data=file.read(),
+                file_name=f"styled_{style_choice}_{timestamp}.png",
+                mime="image/png"
+            )
+        
+        st.caption(f"⚠️ 시뮬레이션 결과입니다. 스타일 강도: {style_weight * 100}%")
 
     def _render_product_search_project(self):
         """상품 검색 시스템 프로젝트"""
@@ -1958,7 +2160,7 @@ class TransferLearningModule(BaseImageProcessor):
             ```python
             import google.generativeai as genai
             genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-2.5-flash')
 
             # 이미지 설명 생성
             response = model.generate_content(["이 상품을 설명해주세요", image])
@@ -1987,7 +2189,7 @@ class TransferLearningModule(BaseImageProcessor):
                                 api_key = os.getenv('GOOGLE_API_KEY')
                                 if api_key:
                                     genai.configure(api_key=api_key)
-                                    model = genai.GenerativeModel('gemini-1.5-flash')
+                                    model = genai.GenerativeModel('gemini-2.5-flash')
 
                                     prompt = f"""
                                     패션 상품 검색: "{query}"
@@ -2002,7 +2204,7 @@ class TransferLearningModule(BaseImageProcessor):
                                     response = model.generate_content(prompt)
                                     st.success("✅ API 검색 완료!")
                                     st.write("**Gemini 검색 결과:**")
-                                    st.info(response.text)
+                                    st.info(safe_get_response_text(response))
                                 else:
                                     st.error("API Key가 설정되지 않았습니다.")
                             except Exception as e:
@@ -2025,7 +2227,7 @@ class TransferLearningModule(BaseImageProcessor):
                                     api_key = os.getenv('GOOGLE_API_KEY')
                                     if api_key:
                                         genai.configure(api_key=api_key)
-                                        model = genai.GenerativeModel('gemini-1.5-flash')
+                                        model = genai.GenerativeModel('gemini-2.5-flash')
 
                                         img = Image.open(query_img)
                                         prompt = """
@@ -2039,7 +2241,7 @@ class TransferLearningModule(BaseImageProcessor):
                                         response = model.generate_content([prompt, img])
                                         st.success("✅ API 검색 완료!")
                                         st.write("**Gemini 검색 결과:**")
-                                        st.info(response.text)
+                                        st.info(safe_get_response_text(response))
                                     else:
                                         st.error("API Key가 설정되지 않았습니다.")
                                 except Exception as e:
@@ -2061,7 +2263,7 @@ class TransferLearningModule(BaseImageProcessor):
                                 api_key = os.getenv('GOOGLE_API_KEY')
                                 if api_key:
                                     genai.configure(api_key=api_key)
-                                    model = genai.GenerativeModel('gemini-1.5-flash')
+                                    model = genai.GenerativeModel('gemini-2.5-flash')
 
                                     img = Image.open(img_q)
                                     prompt = f"""
@@ -2079,7 +2281,7 @@ class TransferLearningModule(BaseImageProcessor):
                                     response = model.generate_content([prompt, img])
                                     st.success("✅ API 검색 완료!")
                                     st.write("**Gemini 검색 결과:**")
-                                    st.info(response.text)
+                                    st.info(safe_get_response_text(response))
                                 else:
                                     st.error("API Key가 설정되지 않았습니다.")
                             except Exception as e:
