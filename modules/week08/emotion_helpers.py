@@ -11,6 +11,8 @@ import os
 import io
 import base64
 import json
+import time
+import random
 from collections import deque
 from typing import Dict, List, Optional, Tuple, Any, Deque
 import numpy as np
@@ -22,6 +24,51 @@ from core.base_processor import BaseImageProcessor
 
 # .env 파일 로드
 load_dotenv()
+
+
+class RateLimiter:
+    """
+    API Rate Limiting 관리 클래스
+    
+    Gemini API의 무료 티어 제한을 관리합니다:
+    - 분당 2회 요청 제한
+    - 자동 지연 및 재시도
+    """
+    
+    def __init__(self, requests_per_minute: int = 2):
+        """
+        Rate Limiter 초기화
+        
+        Args:
+            requests_per_minute: 분당 허용 요청 수
+        """
+        self.requests_per_minute = requests_per_minute
+        self.request_times = deque(maxlen=requests_per_minute)
+        
+    def wait_if_needed(self):
+        """
+        필요한 경우 대기하여 rate limit 준수
+        """
+        now = time.time()
+        
+        # 큐가 가득 찬 경우
+        if len(self.request_times) >= self.requests_per_minute:
+            # 가장 오래된 요청으로부터 60초가 지났는지 확인
+            oldest_request = self.request_times[0]
+            time_diff = now - oldest_request
+            
+            if time_diff < 60:  # 60초가 지나지 않았으면 대기
+                wait_time = 60 - time_diff + 1  # 1초 여유
+                st.info(f"⏳ Rate limit 준수를 위해 {wait_time:.1f}초 대기 중...")
+                time.sleep(wait_time)
+                now = time.time()
+        
+        # 현재 시간 기록
+        self.request_times.append(now)
+
+
+# 전역 rate limiter 인스턴스
+_rate_limiter = RateLimiter()
 
 
 class EmotionHelper(BaseImageProcessor):
@@ -193,23 +240,24 @@ class EmotionHelper(BaseImageProcessor):
     def _analyze_with_gemini(
         self,
         image: Image.Image,
-        prompt: Optional[str] = None
+        prompt: Optional[str] = None,
+        max_retries: int = 3
     ) -> Dict[str, float]:
         """
-        Google Gemini API를 사용하여 감정 분석
+        Google Gemini API를 사용하여 감정 분석 (Rate Limiting 처리)
 
         Args:
             image: 분석할 PIL 이미지
             prompt: 추가 컨텍스트 프롬프트
+            max_retries: 최대 재시도 횟수
 
         Returns:
             Dict[str, float]: 감정 신뢰도 딕셔너리
         """
         import re
 
-        try:
-            # 프롬프트 구성
-            analysis_prompt = '''이미지 속 사람의 감정을 분석하고 다음 JSON 형식으로만 반환하세요.
+        # 프롬프트 구성
+        analysis_prompt = '''이미지 속 사람의 감정을 분석하고 다음 JSON 형식으로만 반환하세요.
 다른 설명 없이 JSON만 출력해주세요:
 
 {
@@ -224,23 +272,61 @@ class EmotionHelper(BaseImageProcessor):
 
 각 값은 0.0에서 1.0 사이의 신뢰도입니다.'''
 
-            if prompt:
-                analysis_prompt += f'\n\n추가 컨텍스트: {prompt}'
+        if prompt:
+            analysis_prompt += f'\n\n추가 컨텍스트: {prompt}'
 
-            # 이미지 크기 최적화 (API 비용 절감)
-            max_size = 1024
-            if image.width > max_size or image.height > max_size:
-                image = self.resize_image(image, (max_size, max_size))
+        # 이미지 크기 최적화 (API 비용 절감)
+        max_size = 1024
+        if image.width > max_size or image.height > max_size:
+            image = self.resize_image(image, (max_size, max_size))
 
-            # Gemini API 호출
-            response = self.gemini_model.generate_content([analysis_prompt, image])
+        # 재시도 로직
+        for attempt in range(max_retries):
+            try:
+                # Rate limiting 적용
+                _rate_limiter.wait_if_needed()
 
-            # JSON 파싱
-            return self._parse_emotion_response(response.text)
+                # Gemini API 호출
+                response = self.gemini_model.generate_content([analysis_prompt, image])
 
-        except Exception as e:
-            st.error(f'❌ Gemini API 호출 실패: {str(e)}')
-            return self._simulate_emotion()
+                # JSON 파싱
+                result = self._parse_emotion_response(response.text)
+                
+                # 성공 시 즉시 반환
+                if attempt > 0:
+                    st.success("✅ API 호출 성공!")
+                return result
+
+            except Exception as e:
+                error_msg = str(e)
+                
+                # Rate limit 에러 확인
+                if "429" in error_msg or "quota" in error_msg.lower():
+                    st.warning(f"⚠️ API 제한 도달 (시도 {attempt + 1}/{max_retries})")
+                    
+                    # 재시도할 시간이 있으면 계속
+                    if attempt < max_retries - 1:
+                        # 에러 메시지에서 대기 시간 추출 시도
+                        import re
+                        retry_match = re.search(r'(\d+\.?\d*)\s*s', error_msg)
+                        if retry_match:
+                            wait_time = float(retry_match.group(1)) + 1  # 1초 추가
+                            st.info(f"⏳ {wait_time:.1f}초 대기 후 재시도...")
+                            time.sleep(wait_time)
+                        else:
+                            # 기본 대기 시간
+                            wait_time = 30 + random.uniform(0, 10)  # 30-40초 랜덤
+                            st.info(f"⏳ {wait_time:.1f}초 대기 후 재시도...")
+                            time.sleep(wait_time)
+                        continue
+                else:
+                    # 다른 종류의 에러는 즉시 실패 처리
+                    st.error(f'❌ Gemini API 호출 실패: {error_msg}')
+                    break
+
+        # 모든 재시도 실패 시 시뮬레이션 모드로 fallback
+        st.error("❌ API 호출이 계속 실패했습니다. 시뮬레이션 모드로 전환합니다.")
+        return self._simulate_emotion()
 
     def _parse_emotion_response(self, text: str) -> Dict[str, float]:
         """
@@ -393,24 +479,49 @@ class EmotionHelper(BaseImageProcessor):
 
     def _simulate_emotion(self) -> Dict[str, float]:
         """
-        시뮬레이션 모드에서 랜덤 감정 생성
+        시뮬레이션 모드에서 현실적인 감정 생성
 
-        테스트 및 데모 목적으로 사용됩니다.
+        API 사용 불가 시 데모 목적으로 사용됩니다.
+        더 현실적인 감정 분포를 제공합니다.
 
         Returns:
-            Dict[str, float]: 랜덤 감정 신뢰도 딕셔너리
+            Dict[str, float]: 현실적인 감정 신뢰도 딕셔너리
         """
         import random
 
-        # 랜덤 감정 생성
+        # 현실적인 감정 패턴 생성
+        patterns = [
+            {'happy': 0.7, 'neutral': 0.2, 'surprise': 0.1},  # 행복한 표정
+            {'neutral': 0.6, 'sad': 0.3, 'angry': 0.1},       # 약간 우울한 표정
+            {'surprise': 0.5, 'happy': 0.3, 'neutral': 0.2},  # 놀란 표정
+            {'angry': 0.4, 'neutral': 0.4, 'disgust': 0.2},   # 화난 표정
+            {'neutral': 0.8, 'happy': 0.1, 'sad': 0.1},       # 중립적 표정
+        ]
+        
+        # 랜덤하게 패턴 선택
+        base_pattern = random.choice(patterns)
+        
+        # 기본 감정 값 설정
         emotions = ['happy', 'sad', 'angry', 'fear', 'surprise', 'disgust', 'neutral']
-        values = [random.random() for _ in emotions]
-
+        result = {emotion: base_pattern.get(emotion, 0.0) for emotion in emotions}
+        
+        # 약간의 노이즈 추가 (더 자연스럽게)
+        for emotion in emotions:
+            if result[emotion] == 0.0:
+                result[emotion] = random.uniform(0.0, 0.1)  # 작은 값 추가
+            else:
+                # 기존 값에 약간의 변화 추가
+                noise = random.uniform(-0.1, 0.1)
+                result[emotion] = max(0.0, min(1.0, result[emotion] + noise))
+        
         # 정규화 (합계가 1.0이 되도록)
-        total = sum(values)
-        normalized = {emotion: value / total for emotion, value in zip(emotions, values)}
-
-        return normalized
+        total = sum(result.values())
+        if total > 0:
+            result = {emotion: value / total for emotion, value in result.items()}
+        
+        st.info("🎭 시뮬레이션 모드: 실제 AI 분석이 아닌 데모용 결과입니다.")
+        
+        return result
 
     def analyze_multimodal(
         self,
