@@ -19,6 +19,9 @@ ENV/
 .claude/
 .vscode/
 
+# Practice folder (moved to C:\practice)
+practice/
+
 # IDE
 .vscode/
 .claude/
