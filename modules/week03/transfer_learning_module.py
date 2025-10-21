@@ -1930,11 +1930,7 @@ class TransferLearningModule(BaseImageProcessor):
                                 if api_key and api_key != 'your_api_key_here':
                                     # 1단계: Gemini API로 스타일 분석
                                     genai.configure(api_key=api_key)
-<<<<<<< HEAD
                                     model = genai.GenerativeModel('gemini-2.0-flash-exp')
-=======
-                                    model = genai.GenerativeModel('gemini-2.5-flash')
->>>>>>> 32858909f53922fd177e2a21f8012c875c0c9e4a
 
                                     img = Image.open(content_image)
                                     style_name = style_choice if style_choice != "직접 업로드" else "업로드된 스타일"
